@@ -1,4 +1,4 @@
-FROM heroku/log-shuttle:0.13.0
+FROM heroku/log-shuttle:0.12.0
 
 RUN apk-install wget sudo bash
 
