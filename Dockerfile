@@ -1,4 +1,6 @@
-FROM heroku/log-shuttle:0.12.0
+FROM heroku/log-shuttle:0.14.0
+
+RUN apk update
 
 RUN apk-install wget sudo bash socat
 
