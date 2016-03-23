@@ -1,5 +1,7 @@
 FROM heroku/log-shuttle:0.14.0
 
+RUN apk update
+
 RUN apk-install wget sudo bash
 
 ADD ./heroku_kinesis.sh /root/
