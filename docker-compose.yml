@@ -1,0 +1,25 @@
+shuttle:
+  build: .
+  environment:
+    - KINESIS_URL=http://ext-stream-1:2000
+    - KINESIS_SHARDS=1
+    - OTHER_URL=http://ext-stream-2:3000
+  ports:
+    - 514:514/tcp
+  links:
+    - ext-stream-1
+    - ext-stream-2
+
+ext-stream-1:
+  build: .
+  dockerfile: Dockerfile-logger
+  ports:
+    - 2000:2000/tcp
+  command: nc -vvv -lp 2000
+
+ext-stream-2:
+  build: .
+  dockerfile: Dockerfile-logger
+  ports:
+    - 3000:3000/tcp
+  command: nc -vvv -lp 3000
