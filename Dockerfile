@@ -1,4 +1,4 @@
-FROM heroku/log-shuttle:0.14.0
+FROM heroku/log-shuttle:0.16.0
 
 RUN apk update
 
