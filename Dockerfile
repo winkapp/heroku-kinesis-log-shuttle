@@ -1,4 +1,4 @@
-FROM heroku/log-shuttle:0.16.0
+FROM quay.io/winkapp/log-shuttle:v0.16.0
 
 RUN apk update
 
