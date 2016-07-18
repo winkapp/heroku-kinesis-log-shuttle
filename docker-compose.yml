@@ -15,11 +15,11 @@ ext-stream-1:
   dockerfile: Dockerfile-logger
   ports:
     - 2000:2000/tcp
-  command: nc -vvv -lp 2000
+  command: nc -vvv -lk -p 2000
 
 ext-stream-2:
   build: .
   dockerfile: Dockerfile-logger
   ports:
     - 3000:3000/tcp
-  command: nc -vvv -lp 3000
+  command: nc -vvv -lk -p 3000
