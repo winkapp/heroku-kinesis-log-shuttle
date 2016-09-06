@@ -6,7 +6,9 @@ To use this log-shuttle:
 
 * Send your logs via TCP to port `514`.
 * In the ENV for the log-shuttle set:
-  * `KINESIS_URL`, the url of the Kinesis stream with url encoded credentials included.
-  * `KINESIS_SHARDS`, the number of shards the Kinesis stream has.
+  * `KINESIS_URL` the url of the Kinesis stream with url encoded credentials included.
+  * `KINESIS_SHARDS` the number of shards the Kinesis stream has.
+  * `MAX_LINE_LENGTH` Max line length (Default: 32000)
+  * `BATCH_SIZE` log-shuttle batch size (Default: 150)
 
 [![Docker Repository on Quay.io](https://quay.io/repository/winkapp/kinesis-log-shuttle/status "Docker Repository on Quay")](https://quay.io/repository/winkapp/kinesis-log-shuttle)
