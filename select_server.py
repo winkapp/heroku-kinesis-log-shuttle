@@ -85,13 +85,16 @@ def main():
                         # New connection recieved through server_socket
                         conn, addr = server_socket.accept()
                         conn_fd = conn.fileno()
-                        connections[conn_fd] = conn
+                        connections[conn_fd] = (conn, addr)
                         poll.register(conn_fd, reg_events)
                         if args.VERBOSE:
                             sys.stderr.write('New connection from {} [{}]\n'.format(addr, conn_fd))
                     else:
                         err_msg = ''
-                        pn = server_socket.getpeername()
+                        try:
+                            pn = server_socket.getpeername()
+                        except socket.error:
+                            pn = 'Unknown Peer'
                         if event & select.POLLNVAL:
                             err_msg = 'Invalid request: descriptor not open: '
                         elif event & select.POLLHUP:
@@ -106,7 +109,7 @@ def main():
                         raise err
                 else:
                     # Process incoming message from client
-                    conn = connections.get(sock_fd)
+                    conn, addr = connections.get(sock_fd)
                     if conn is not None and (event & select.POLLIN == event or
                                              event & select.POLLPRI == event):
                         try:
@@ -138,7 +141,7 @@ def main():
                             # client disconnected, remove from socket list
                             if args.VERBOSE:
                                 sys.stderr.write(
-                                    'Closed conn: {} [{}]\n'.format(conn.getpeername(), sock_fd))
+                                    'Closed conn: {} [{}]\n'.format(addr, sock_fd))
                             try:
                                 conn.close()
                             except socket.error:
@@ -153,14 +156,13 @@ def main():
                     else:
                         # Handle error event
                         if args.VERBOSE:
-                            pn = conn.getpeername()
                             if event & select.POLLNVAL:
                                 sys.stderr.write('Invalid request: descriptor not open: ')
                             elif event & select.POLLHUP:
                                 sys.stderr.write('Hung up: ')
                             elif event & select.POLLERR:
                                 sys.stderr.write('Connection Error: ')
-                            sys.stderr.write('{} [{}]\n'.format(pn, sock_fd))
+                            sys.stderr.write('{} [{}]\n'.format(addr, sock_fd))
                         poll.unregister(sock_fd)
                         del connections[sock_fd]
             else:
@@ -178,7 +180,4 @@ def main():
                 pass
 
 if __name__ == '__main__':
-    try:
-        main()
-    except KeyboardInterrupt:
-        print
+    main()
