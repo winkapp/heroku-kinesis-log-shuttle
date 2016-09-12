@@ -1,0 +1,12 @@
+machine:
+  services:
+    - docker
+
+deployment:
+  docker:
+    branch: py-poller
+    commands:
+      - docker build -t quay.io/winkapp/kinesis-log-shuttle:$CIRCLE_SHA1 .
+      - docker tag -f quay.io/winkapp/kinesis-log-shuttle:$CIRCLE_SHA1 quay.io/winkapp/kinesis-log-shuttle:$CIRCLE_BRANCH
+      - docker login -e $QUAY_EMAIL -u $QUAY_USER -p $QUAY_PASS quay.io
+      - docker push quay.io/winkapp/kinesis-log-shuttle
