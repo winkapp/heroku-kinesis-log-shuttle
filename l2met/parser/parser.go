@@ -147,7 +147,7 @@ func (p *parser) Prefix(suffix string) string {
 func (p *parser) Auth() string {
 	pre, present := p.opts["auth"]
     if !present {
-        return p.mchan.Username()
+        return p.mchan.Token()
     }
     return pre[0]
 }

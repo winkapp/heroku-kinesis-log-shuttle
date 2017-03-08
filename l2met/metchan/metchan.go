@@ -5,7 +5,6 @@ package metchan
 
 import (
 	"log"
-	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -19,14 +18,12 @@ type Channel struct {
 	FlushInterval time.Duration
 	// The Channel is thread-safe.
 	sync.Mutex
-	username   string
-	password   string
+	token      string
 	verbose    bool
 	quiet      bool
 	Enabled    bool
 	Buffer     map[string]*bucket.Bucket
 	outbox     chan *bucket.Metric
-	url        *url.URL
 	source     string
 	appName    string
 	numOutlets int
@@ -38,7 +35,7 @@ type Channel struct {
 // If a blank URL is given, no metric posting attempt will be made.
 // If verbose is set to true, the metric will be printed to STDOUT
 // regardless of whether the metric is sent upstream.
-func New(verbose bool, quiet bool, metchan_url *url.URL, ccu int, buffsize int, appName string, hostName string) *Channel {
+func New(verbose bool, quiet bool, token string, ccu int, buffsize int, appName string, hostName string) *Channel {
 	c := new(Channel)
 
 	// This will enable writting to a logger.
@@ -48,22 +45,23 @@ func New(verbose bool, quiet bool, metchan_url *url.URL, ccu int, buffsize int, 
 	// If the url is nil, then it wasn't initialized
 	// by the conf pkg. If it is not nil, we will
 	// enable the Metchan.
-	if metchan_url != nil {
-		c.url = metchan_url
-		if c.url.User != nil {
-			c.username = c.url.User.Username()
-			c.password, _ = c.url.User.Password()
-			c.url.User = nil
-		}
-		c.Enabled = true
-		if c.verbose {
-			log.Printf("Channel url:      %v\n", c.url)
-			log.Printf("Channel Username: %v\n", c.username)
-			log.Printf("Channel Password: %v\n", c.password)
-			log.Printf("Channel Enabled:  %v\n", c.Enabled)
-		}
-	}
-
+	//if metchan_url != nil {
+	//	c.url = metchan_url
+	//	if c.url.User != nil {
+	//		c.username = c.url.User.Username()
+	//		c.password, _ = c.url.User.Password()
+	//		c.url.User = nil
+	//	}
+	//	c.Enabled = true
+	//	if c.verbose {
+	//		log.Printf("Channel url:      %v\n", c.url)
+	//		log.Printf("Channel Username: %v\n", c.username)
+	//		log.Printf("Channel Password: %v\n", c.password)
+	//		log.Printf("Channel Enabled:  %v\n", c.Enabled)
+	//	}
+	//}
+    c.Enabled = true
+    c.token = token
 	c.numOutlets = ccu
 
 	// Internal Datastructures.
@@ -75,6 +73,13 @@ func New(verbose bool, quiet bool, metchan_url *url.URL, ccu int, buffsize int, 
 
 	c.source = hostName
 	c.appName = appName
+    if c.verbose {
+        log.Printf("MetChan token:         %v\n", c.token)
+	    log.Printf("MetChan source:        %v\n", c.source)
+	    log.Printf("MetChan appName:       %v\n", c.appName)
+	    log.Printf("MetChan numOutlets:    %v\n", c.numOutlets)
+        log.Printf("MetChan FlushInterval: %v\n", c.FlushInterval)
+    }
 	return c
 }
 
@@ -207,9 +212,9 @@ func (c *Channel) outlet() {
 func (c *Channel) post(m *bucket.Metric) error {
 	// FIXME: hardcoded to push to datadog, should be configurable?
 	dd := metrics.DataDogConverter{Src: m}
-	return dd.Post(c.url.String(), c.username)
+	return dd.Post(c.token)
 }
 
-func (c *Channel) Username() string {
-	return c.username
+func (c *Channel) Token() string {
+	return c.token
 }

@@ -306,14 +306,10 @@ func main() {
 	//	errLogger.Fatalln(`error="No stdin detected."`)
 	//}
 
-    mchanUrl, err := url.Parse(config.L2met_MetchanUrl)
-	if err != nil {
-        errLogger.Fatalf("Error parsing MetChan URL: error=%v\n", err.Error())
-	}
    mchan := metchan.New(
 			config.Verbose,
 			config.Quiet,
-			mchanUrl,
+			config.L2met_OutletAPIToken,
 			config.L2met_Concurrency,
 			config.L2met_BufferSize,
 			config.Appname,

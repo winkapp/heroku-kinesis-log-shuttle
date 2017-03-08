@@ -1,6 +1,8 @@
 .DS_Store
 .git
 circle.yml
+./log-shuttle
+CHANGELOG.md
 
 deployments
 tmp

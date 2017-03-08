@@ -15,12 +15,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/DataDog/l2met/auth"
-	"github.com/DataDog/l2met/bucket"
-	"github.com/DataDog/l2met/conf"
-	"github.com/DataDog/l2met/metchan"
-	"github.com/DataDog/l2met/metrics"
-	"github.com/DataDog/l2met/reader"
+    "github.com/winkapp/log-shuttle"
+	"github.com/winkapp/log-shuttle/l2met/bucket"
+	"github.com/winkapp/log-shuttle/l2met/metchan"
+	"github.com/winkapp/log-shuttle/l2met/metrics"
+	"github.com/winkapp/log-shuttle/l2met/reader"
+    "log"
 )
 
 type LibratoOutlet struct {
@@ -48,14 +48,14 @@ func buildClient(ttl time.Duration) *http.Client {
 	return &http.Client{Transport: tr}
 }
 
-func NewLibratoOutlet(cfg *conf.D, r *reader.Reader) *LibratoOutlet {
+func NewLibratoOutlet(cfg shuttle.Config, r *reader.Reader) *LibratoOutlet {
 	l := new(LibratoOutlet)
-	l.conn = buildClient(cfg.OutletTtl)
-	l.inbox = make(chan *bucket.Bucket, cfg.BufferSize)
-	l.conversions = make(chan *metrics.Librato, cfg.BufferSize)
-	l.outbox = make(chan []*metrics.Librato, cfg.BufferSize)
-	l.numOutlets = cfg.Concurrency
-	l.numRetries = cfg.OutletRetries
+	l.conn = buildClient(cfg.L2met_OutletTtl)
+	l.inbox = make(chan *bucket.Bucket, cfg.L2met_BufferSize)
+	l.conversions = make(chan *metrics.Librato, cfg.L2met_BufferSize)
+	l.outbox = make(chan []*metrics.Librato, cfg.L2met_BufferSize)
+	l.numOutlets = cfg.L2met_Concurrency
+	l.numRetries = cfg.L2met_OutletRetries
 	l.rdr = r
 	return l
 }
@@ -75,11 +75,11 @@ func (l *LibratoOutlet) Start() {
 }
 
 func (l *LibratoOutlet) convert() {
-	for bucket := range l.inbox {
-		for _, m := range bucket.Metrics() {
+	for bckt := range l.inbox {
+		for _, m := range bckt.Metrics() {
 			l.conversions <- metrics.LibratoConvertMetric(m)
 		}
-		delay := bucket.Id.Delay(time.Now())
+		delay := bckt.Id.Delay(time.Now())
 		l.Mchan.Measure("outlet.delay", float64(delay))
 	}
 }
@@ -115,26 +115,22 @@ func (l *LibratoOutlet) groupByUser() {
 func (l *LibratoOutlet) outlet() {
 	for payloads := range l.outbox {
 		if len(payloads) < 1 {
-			fmt.Printf("at=%q\n", "empty-metrics-error")
+			log.Printf("at=%q\n", "empty-metrics-error")
 			continue
 		}
 		//Since a playload contains all metrics for
 		//a unique librato user/pass, we can extract the user/pass
 		//from any one of the payloads.
-		decr, err := auth.Decrypt(payloads[0].Auth)
-		if err != nil {
-			fmt.Printf("error=%s\n", err)
-			continue
-		}
+		decr := payloads[0].Auth
 		creds := strings.Split(decr, ":")
 		if len(creds) != 2 {
-			fmt.Printf("error=missing-creds\n")
+			log.Println("error=missing-creds")
 			continue
 		}
-		libratoReq := &metrics.LibratoRequest{payloads}
+		libratoReq := &metrics.LibratoRequest{Gauges: payloads}
 		j, err := json.Marshal(libratoReq)
 		if err != nil {
-			fmt.Printf("at=json error=%s user=%s\n", err, creds[0])
+			log.Printf("at=json error=%s user=%s\n", err, creds[0])
 			continue
 		}
 		fmt.Println(j)
@@ -169,7 +165,7 @@ func (l *LibratoOutlet) post(u, p string, body []byte) error {
 		return err
 	}
 	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("User-Agent", "l2met/"+conf.Version)
+	req.Header.Add("User-Agent", "l2met/1.0")
 	req.Header.Add("Connection", "Keep-Alive")
 	req.SetBasicAuth(u, p)
 	resp, err := l.conn.Do(req)
@@ -194,7 +190,7 @@ func (l *LibratoOutlet) post(u, p string, body []byte) error {
 // Keep an eye on the lenghts of our buffers.
 // If they are maxed out, something is going wrong.
 func (l *LibratoOutlet) Report() {
-	for _ = range time.Tick(time.Second) {
+	for range time.Tick(time.Second) {
 		pre := "librato-outlet."
 		l.Mchan.Measure(pre+"inbox", float64(len(l.inbox)))
 		l.Mchan.Measure(pre+"conversion", float64(len(l.conversions)))

@@ -7,7 +7,7 @@ import (
 	"time"
 	"regexp"
 	"github.com/rcrowley/go-metrics"
-	"github.com/heroku/log-shuttle/l2met/receiver"
+	"github.com/winkapp/log-shuttle/l2met/receiver"
 	"log"
 )
 

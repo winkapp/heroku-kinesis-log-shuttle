@@ -1,6 +1,6 @@
 package metrics
 
-import "github.com/DataDog/l2met/bucket"
+import "github.com/winkapp/log-shuttle/l2met/bucket"
 
 var LibratoUrl = "https://metrics-api.librato.com/v1/metrics"
 

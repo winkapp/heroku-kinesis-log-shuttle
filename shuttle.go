@@ -7,8 +7,8 @@ import (
 	"sync"
 
 	metrics "github.com/rcrowley/go-metrics"
-	"github.com/heroku/log-shuttle/l2met/store"
-	"github.com/heroku/log-shuttle/l2met/metchan"
+	"github.com/winkapp/log-shuttle/l2met/store"
+	"github.com/winkapp/log-shuttle/l2met/metchan"
 )
 
 // Default logger to /dev/null

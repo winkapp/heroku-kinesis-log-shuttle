@@ -88,7 +88,7 @@ func (d DataDogConverter) Convert() []*DataDog {
 
 }
 
-func (d DataDogConverter) Post(url, api_key string) error {
+func (d DataDogConverter) Post(api_key string) error {
 	metrics := d.Convert()
 	if len(metrics) == 0 {
 		return errors.New("empty-metrics-error")
@@ -114,7 +114,7 @@ func (d DataDogConverter) Post(url, api_key string) error {
 		return fmt.Errorf("at=json error=%s key=%s\n", err, api_key)
 	}
 
-	req, err := DataDogCreateRequest(url, api_key, body)
+	req, err := DataDogCreateRequest(DataDogUrl, api_key, body)
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err

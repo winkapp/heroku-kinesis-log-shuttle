@@ -9,7 +9,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/winkapp/log-shuttle/l2met/conf"
 	"github.com/winkapp/log-shuttle/l2met/metrics"
 )
 
@@ -46,12 +45,16 @@ func TestMetchan(t *testing.T) {
 	for _, ts := range metTests {
 		actual := make([]string, len(ts.out))
 		u, srv := serve(&actual)
-		c := &conf.D{
-			AppName:    "l2met-test",
-			Verbose:    false,
-			MetchanUrl: u,
-		}
-		mchan := New(c)
+
+        mchan := New(
+			false,
+			false,
+			"",
+			10,
+			1024,
+			"l2met-test",
+			"test-host")
+
 		mchan.FlushInterval = time.Millisecond * 500
 		mchan.Start()
 		mchan.Time(ts.inName, ts.start)
