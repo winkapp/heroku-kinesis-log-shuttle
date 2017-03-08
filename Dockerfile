@@ -1,12 +1,15 @@
-FROM quay.io/winkapp/log-shuttle:v0.16.0
+FROM golang:1.8.0-alpine
+MAINTAINER Jonathan Hosmer <jonathan@wink.com>
 
-RUN apk update
-
-RUN apk-install wget sudo bash
-
-ADD ./heroku_kinesis.sh /root/
+RUN mkdir -p /go/src/app
+WORKDIR /go/src/app
 
 EXPOSE 514
 
-ENTRYPOINT ["/bin/bash"]
-CMD ["/root/heroku_kinesis.sh"]
+COPY entrypoint.sh /entrypoint.sh
+
+COPY . /go/src/app
+RUN go-wrapper download
+RUN go-wrapper install -v cmd/log-shuttle
+
+ENTRYPOINT ["/entrypoint.sh"]
