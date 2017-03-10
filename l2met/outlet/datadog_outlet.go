@@ -6,7 +6,6 @@ package outlet
 import (
 	"encoding/json"
 	"errors"
-	"log"
 	"net"
 	"net/http"
 	"runtime"
@@ -18,7 +17,10 @@ import (
 	"github.com/winkapp/log-shuttle/l2met/reader"
 	"strings"
 	"github.com/winkapp/log-shuttle"
+    "github.com/op/go-logging"
 )
+
+var logger = logging.MustGetLogger("log-shuttle")
 
 type DataDogOutlet struct {
 	inbox       chan *bucket.Bucket
@@ -103,7 +105,7 @@ func (l *DataDogOutlet) groupByUser() {
 				delete(m, k)
 			}
 		case payload := <-l.conversions:
-			log.Printf("payload: %v\n", payload)
+			logger.Debugf("payload: %v", payload)
 			usr := payload.Auth
 			if _, present := m[usr]; !present {
 				m[usr] = make([]*metrics.DataDog, 1, 300)
@@ -122,33 +124,31 @@ func (l *DataDogOutlet) groupByUser() {
 func (l *DataDogOutlet) outlet() {
 	for payloads := range l.outbox {
 		if len(payloads) < 1 {
-			if !l.quiet {
-				log.Printf("at=%q\n", "empty-metrics-error")
-			}
+
+            logger.Errorf("at=%q", "empty-metrics-error")
+
 			continue
 		}
 		//Since a playload contains all metrics for
 		//a unique datadog api_key, we can extract the user/pass
 		//from any one of the payloads.
 		api_key := payloads[0].Auth
-		if l.verbose {
-			for m := range payloads {
-				log.Printf("---------------------- %v ----------------------\n", m)
-				log.Printf("m.Metric:  %v\n", payloads[m].Metric)
-				log.Printf("m.Host:    %v\n", payloads[m].Host)
-				log.Printf("m.Tags:    %v\n", payloads[m].Tags)
-				log.Printf("m.Type:    %v\n", payloads[m].Type)
-				log.Printf("m.Auth:    %v\n", payloads[m].Auth)
-				log.Printf("m.Points:  %v\n", payloads[m].Points)
-				log.Println("------------------------------------------------")
-			}
-		}
+
+        for m := range payloads {
+            logger.Debugf("---------------------- %v ----------------------", m)
+            logger.Debugf("m.Metric:  %v", payloads[m].Metric)
+            logger.Debugf("m.Host:    %v", payloads[m].Host)
+            logger.Debugf("m.Tags:    %v", payloads[m].Tags)
+            logger.Debugf("m.Type:    %v", payloads[m].Type)
+            logger.Debugf("m.Auth:    %v", payloads[m].Auth)
+            logger.Debugf("m.Points:  %v", payloads[m].Points)
+            logger.Debug("------------------------------------------------")
+        }
+
 		ddReq := &metrics.DataDogRequest{Series: payloads}
 		j, err := json.Marshal(ddReq)
 		if err != nil {
-			if !l.quiet {
-				log.Printf("at=json error=%s key=%s\n", err, api_key)
-			}
+            logger.Errorf("at=json error=%s key=%s", err, api_key)
 			continue
 		}
 
@@ -161,9 +161,9 @@ func (l *DataDogOutlet) outlet() {
 func (l *DataDogOutlet) postWithRetry(api_key string, body []byte) error {
 	for i := 0; i <= l.numRetries; i++ {
 		if err := l.post(api_key, body); err != nil {
-			if !l.quiet {
-				log.Printf("measure.datadog.error key=%s msg=%s attempt=%d\n", api_key, err, i)
-			}
+
+            logger.Errorf("measure.datadog.error key=%s msg=%s attempt=%d", api_key, err, i)
+
 			if i == l.numRetries {
 				return err
 			}
@@ -177,9 +177,9 @@ func (l *DataDogOutlet) postWithRetry(api_key string, body []byte) error {
 
 func (l *DataDogOutlet) post(api_key string, body []byte) error {
 	defer l.Mchan.Time("outlet.post", time.Now())
-	if l.verbose {
-		log.Printf("body: %s\n", string(body))
-	}
+
+    logger.Debugf("body: %s", string(body))
+
 	req, err := metrics.DataDogCreateRequest(metrics.DataDogUrl, api_key, body)
 	resp, err := l.conn.Do(req)
 	if err != nil {

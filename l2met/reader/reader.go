@@ -4,14 +4,15 @@
 package reader
 
 import (
-	"log"
 	"time"
-
 	"github.com/winkapp/log-shuttle/l2met/bucket"
 	"github.com/winkapp/log-shuttle/l2met/metchan"
 	"github.com/winkapp/log-shuttle/l2met/store"
 	"github.com/winkapp/log-shuttle"
+    "github.com/op/go-logging"
 )
+
+var logger = logging.MustGetLogger("log-shuttle")
 
 type Reader struct {
 	str          store.Store
@@ -49,9 +50,7 @@ func (r *Reader) scan() {
 		startScan := time.Now()
 		buckets, err := r.str.Scan(r.str.Now().Truncate(time.Second))
 		if err != nil {
-			if !r.quiet {
-				log.Printf("at=bucket.scan error=%s\n", err)
-			}
+            logger.Errorf("at=bucket.scan error=%s", err)
 			continue
 		}
 		i := 0

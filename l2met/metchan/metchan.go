@@ -4,14 +4,16 @@
 package metchan
 
 import (
-	"log"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/winkapp/log-shuttle/l2met/bucket"
 	"github.com/winkapp/log-shuttle/l2met/metrics"
+    "github.com/op/go-logging"
 )
+
+var logger = logging.MustGetLogger("log-shuttle")
 
 type Channel struct {
 	// The time by which metchan will aggregate internal metrics.
@@ -19,8 +21,6 @@ type Channel struct {
 	// The Channel is thread-safe.
 	sync.Mutex
 	token      string
-	verbose    bool
-	quiet      bool
 	Enabled    bool
 	Buffer     map[string]*bucket.Bucket
 	outbox     chan *bucket.Metric
@@ -35,31 +35,9 @@ type Channel struct {
 // If a blank URL is given, no metric posting attempt will be made.
 // If verbose is set to true, the metric will be printed to STDOUT
 // regardless of whether the metric is sent upstream.
-func New(verbose bool, quiet bool, token string, ccu int, buffsize int, appName string, hostName string) *Channel {
+func New(token string, ccu int, buffsize int, appName string, hostName string) *Channel {
 	c := new(Channel)
 
-	// This will enable writting to a logger.
-	c.verbose = verbose
-	c.quiet   = quiet
-
-	// If the url is nil, then it wasn't initialized
-	// by the conf pkg. If it is not nil, we will
-	// enable the Metchan.
-	//if metchan_url != nil {
-	//	c.url = metchan_url
-	//	if c.url.User != nil {
-	//		c.username = c.url.User.Username()
-	//		c.password, _ = c.url.User.Password()
-	//		c.url.User = nil
-	//	}
-	//	c.Enabled = true
-	//	if c.verbose {
-	//		log.Printf("Channel url:      %v\n", c.url)
-	//		log.Printf("Channel Username: %v\n", c.username)
-	//		log.Printf("Channel Password: %v\n", c.password)
-	//		log.Printf("Channel Enabled:  %v\n", c.Enabled)
-	//	}
-	//}
     c.Enabled = true
     c.token = token
 	c.numOutlets = ccu
@@ -73,13 +51,13 @@ func New(verbose bool, quiet bool, token string, ccu int, buffsize int, appName 
 
 	c.source = hostName
 	c.appName = appName
-    if c.verbose {
-        log.Printf("MetChan token:         %v\n", c.token)
-	    log.Printf("MetChan source:        %v\n", c.source)
-	    log.Printf("MetChan appName:       %v\n", c.appName)
-	    log.Printf("MetChan numOutlets:    %v\n", c.numOutlets)
-        log.Printf("MetChan FlushInterval: %v\n", c.FlushInterval)
-    }
+
+    logger.Debugf("MetChan token:         %s", logging.Redact(c.token))
+    logger.Debugf("MetChan source:        %s", c.source)
+    logger.Debugf("MetChan appName:       %s", c.appName)
+    logger.Debugf("MetChan numOutlets:    %d", c.numOutlets)
+    logger.Debugf("MetChan FlushInterval: %v", c.FlushInterval)
+
 	return c
 }
 
@@ -101,11 +79,10 @@ func (c *Channel) Time(name string, t time.Time) {
 }
 
 func (c *Channel) Measure(name string, v float64) {
-	if c.verbose {
-		if v > 0 {
-			log.Printf("source=%s measure#%s=%f\n", c.source, name, v)
-		}
-	}
+    if v > 0 {
+        logger.Debugf("source=%s measure#%s=%f", c.source, name, v)
+    }
+
 	if !c.Enabled {
 		return
 	}
@@ -172,9 +149,7 @@ func (c *Channel) flush() {
 			select {
 			case c.outbox <- m:
 			default:
-				if !c.quiet {
-					log.Println("error=metchan-drop")
-				}
+                logger.Error("error=metchan-drop")
 			}
 		}
 	}
@@ -182,29 +157,30 @@ func (c *Channel) flush() {
 
 func (c *Channel) outlet() {
 	for met := range c.outbox {
-		//if c.verbose {
-		//	log.Println("-----------------------------------------------")
-		//	log.Printf("Name:      %v\n", met.Name)
-		//	log.Printf("Time:      %v\n", met.Time)
-		//	if met.IsComplex {
-		//		log.Printf("Count:     %v\n", *met.Count)
-		//		log.Printf("Sum:       %v\n", *met.Sum)
-		//		log.Printf("Max:       %v\n", *met.Max)
-		//		log.Printf("Min:       %v\n", *met.Min)
-		//	} else {
-		//		log.Printf("Val:       %v\n", *met.Val)
-		//	}
-		//	log.Printf("Source:    %v\n", met.Source)
-		//	log.Printf("Auth:      %v\n", met.Auth)
-		//	log.Printf("Attr.Min   %v\n", met.Attr.Min)
-		//	log.Printf("Attr.Units %v\n", met.Attr.Units)
-		//	log.Printf("IsComplex: %v\n", met.IsComplex)
-		//	log.Println("-----------------------------------------------")
-		//}
+        var ignore = strings.Split(met.Name, ".")[1]
+        if ignore == "datadog-outlet" || ignore == "reader" || ignore == "receiver" {
+
+        } else {
+            logger.Debug("-----------------------------------------------")
+            logger.Debugf("Name:       %v", met.Name)
+            logger.Debugf("Time:       %v", met.Time)
+            if met.IsComplex {
+                logger.Debugf("Count:      %v", *met.Count)
+                logger.Debugf("Sum:        %v", *met.Sum)
+                logger.Debugf("Max:        %v", *met.Max)
+                logger.Debugf("Min:        %v", *met.Min)
+            } else {
+                logger.Debugf("Val:        %v", *met.Val)
+            }
+            logger.Debugf("Source:     %v", met.Source)
+            logger.Debugf("Auth:       %v", logging.Redact(met.Auth))
+            logger.Debugf("Attr.Min:   %v", met.Attr.Min)
+            logger.Debugf("Attr.Units: %v", met.Attr.Units)
+            logger.Debugf("IsComplex:  %v", met.IsComplex)
+            logger.Debug("-----------------------------------------------")
+        }
 		if err := c.post(met); err != nil {
-			if !c.quiet {
-				log.Printf("at=metchan-post error=%s\n", err)
-			}
+			logger.Errorf("at=metchan-post error=%s", err)
 		}
 	}
 }

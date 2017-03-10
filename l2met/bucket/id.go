@@ -18,7 +18,7 @@ type Id struct {
 	Units      string
 	Source     string
 	Type       string
-	Tags       string  // map[string]string
+	Tags       string
 }
 
 func (id *Id) Partition(max uint64) uint64 {

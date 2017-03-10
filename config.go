@@ -127,7 +127,6 @@ type Config struct {
 func NewConfig() Config {
 	host, err := os.Hostname()
 	if err != nil {
-		log.Printf("Error getting hostname (%v).  Using default: %v", err, DefaultHostname)
 		host = DefaultHostname
 	}
 

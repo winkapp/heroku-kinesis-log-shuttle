@@ -8,8 +8,10 @@ import (
 	"time"
 	"github.com/winkapp/log-shuttle/l2met/bucket"
 	"github.com/winkapp/log-shuttle/l2met/metchan"
-	"log"
+    "github.com/op/go-logging"
 )
+
+var logger = logging.MustGetLogger("log-shuttle")
 
 type options map[string][]string
 
@@ -42,7 +44,7 @@ func (p *parser) parse() {
 	defer close(p.out)
 	p.ld.Reset()
 	if err := p.ld.Read(p.body); err != nil {
-		log.Printf("error=%s\n", err)
+		logger.Errorf("error=%s", err)
 	}
 	for _, t := range p.ld.Tuples {
 		p.handleCounters(t)
@@ -60,7 +62,7 @@ func (p *parser) handleSamples(t *tuple) error {
 	id.Type = "sample"
 	val, err := t.Float64()
 	if err != nil {
-		log.Printf("error=%v\n", err)
+		logger.Errorf("error=%v", err)
 		return err
 	}
 	p.out <- &bucket.Bucket{Id: id, Vals: []float64{val}}
@@ -76,7 +78,7 @@ func (p *parser) handleCounters(t *tuple) error {
 	id.Type = "counter"
 	val, err := t.Float64()
 	if err != nil {
-		log.Printf("error=%v\n", err)
+		logger.Errorf("error=%v", err)
 		return err
 	}
 	p.out <- &bucket.Bucket{Id: id, Vals: []float64{val}}
@@ -92,7 +94,7 @@ func (p *parser) handlMeasurements(t *tuple) error {
 	id.Type = "measurement"
 	val, err := t.Float64()
 	if err != nil {
-		log.Printf("error=%v\n", err)
+		logger.Errorf("error=%v", err)
 		return err
 	}
 	p.out <- &bucket.Bucket{Id: id, Vals: []float64{val}}

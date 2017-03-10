@@ -8,8 +8,10 @@ import (
 	"regexp"
 	"github.com/rcrowley/go-metrics"
 	"github.com/winkapp/log-shuttle/l2met/receiver"
-	"log"
+    "github.com/op/go-logging"
 )
+
+var logger = logging.MustGetLogger("log-shuttle")
 
 // LogLineReader performs the reading of lines from an io.ReadCloser, encapsulating
 // lines into a LogLine and emitting them on outbox
@@ -108,28 +110,25 @@ func (rdr *LogLineReader) ReadLines() error {
             rdr.linesRead.Inc(1)
             rdr.mu.Lock()
 
-            if rdr.verbose == true {
-                log.Printf("line: %s", line)
-            }
+            logger.Debugf("Read Line: %s", line)
             re, reerr := regexp.Compile(`(count|sample|measure)#(\w[^=\s]*)=(\d+(?:\.\d+)?)([a-zA-Z]*)`)
             var matches [][][]byte
             if reerr != nil {
-                log.Printf("RegExp Compile Error: %s\n", reerr)
+                logger.Errorf("RegExp Compile Error: %s", reerr)
             } else {
                 matches = re.FindAllSubmatch(line, -1)
             }
 
             if len(matches) > 0 {
-                if rdr.verbose == true {
-                    log.Printf("matches: %d\n", len(matches))
-                    for m := range matches  {
-                        log.Printf("match %d: %s\n", m, matches[m][0])
-                        log.Printf("  Metric Type: %s\n", matches[m][1])
-                        log.Printf("  Metric Name: %s\n", matches[m][2])
-                        log.Printf("  Metric Value: %s\n",matches[m][3])
-                        log.Printf("  Metric Units: %s\n",matches[m][4])
-                    }
+                logger.Debugf("Found %v Metric matches in line", len(matches))
+                for m := range matches  {
+                    logger.Debugf("Match %d: %s", m, matches[m][0])
+                    logger.Debugf("  Metric Type: %s", matches[m][1])
+                    logger.Debugf("  Metric Name: %s", matches[m][2])
+                    logger.Debugf("  Metric Value: %s",matches[m][3])
+                    logger.Debugf("  Metric Units: %s",matches[m][4])
                 }
+
                 var opts map[string][]string = make(map[string][]string, 2)
                 opts["tags"] = []string{"environment:staging", "cluster:kubernetes"}
                 opts["source"] = []string{rdr.hostname}

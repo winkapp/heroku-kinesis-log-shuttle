@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"time"
 
 	"github.com/heroku/slog"
@@ -32,11 +31,11 @@ func countDifference(ctx slog.Context, name string, c int64) {
 // LogFmtMetricsEmitter emits the metrics in logfmt compatible formats every d
 // duration using the provided logger. source is added to the line as
 // log_shuttle_stats_source if not empty.
-func LogFmtMetricsEmitter(r metrics.Registry, source string, d time.Duration, l *log.Logger) {
+func LogFmtMetricsEmitter(r metrics.Registry, source string, d time.Duration) {
 	if d == 0 {
 		return
 	}
-	for _ = range time.Tick(d) {
+	for range time.Tick(d) {
 		ctx := slog.Context{}
 		if source != "" {
 			ctx["log_shuttle_stats_source"] = source
@@ -87,6 +86,6 @@ func LogFmtMetricsEmitter(r metrics.Registry, source string, d time.Duration, l 
 				ctx[name+".rate.mean"] = fmt.Sprintf("%.3f", s.RateMean())
 			}
 		})
-		l.Println(ctx)
+		log.Info(ctx)
 	}
 }

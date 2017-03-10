@@ -5,12 +5,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	//"log"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/winkapp/log-shuttle/l2met/bucket"
+    "github.com/op/go-logging"
+    "strings"
 )
+
+var logger = logging.MustGetLogger("log-shuttle")
 
 var DataDogUrl = "https://app.datadoghq.com/api/v1/series"
 
@@ -94,16 +97,21 @@ func (d DataDogConverter) Post(api_key string) error {
 		return errors.New("empty-metrics-error")
 	}
 
-	//for m := range metrics {
-	//	log.Println("-----------------------------------------------")
-	//	log.Printf("m.Metric:  %v\n", metrics[m].Metric)
-	//	log.Printf("m.Host:    %v\n", metrics[m].Host)
-	//	log.Printf("m.Tags:    %v\n", metrics[m].Tags)
-	//	log.Printf("m.Type:    %v\n", metrics[m].Type)
-	//	log.Printf("m.Auth:    %v\n", metrics[m].Auth)
-	//	log.Printf("m.Points:  %v\n", metrics[m].Points)
-	//	log.Println("-----------------------------------------------")
-	//}
+	for m := range metrics {
+        var ignore = strings.Split(metrics[m].Metric, ".")[1]
+        if ignore == "datadog-outlet" || ignore == "reader" || ignore == "receiver" {
+
+        } else {
+            logger.Debug("-----------------------------------------------")
+            logger.Debugf("m.Metric:  %v", metrics[m].Metric)
+            logger.Debugf("m.Host:    %s", metrics[m].Host)
+            logger.Debugf("m.Tags:    %s", metrics[m].Tags)
+            logger.Debugf("m.Type:    %s", metrics[m].Type)
+            logger.Debugf("m.Auth:    %s", logging.Redact(metrics[m].Auth))
+            logger.Debugf("m.Points:  %v", metrics[m].Points)
+            logger.Debug("-----------------------------------------------")
+        }
+	}
 
 
 	ddReq := &DataDogRequest{metrics}

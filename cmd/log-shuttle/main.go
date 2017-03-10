@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log"
+	"github.com/op/go-logging"
 	"log/syslog"
 	"net/url"
 	"os"
@@ -23,9 +23,8 @@ var detectKinesis = regexp.MustCompile(`\Akinesis.[[:alpha:]]{2}-[[:alpha:]]{2,}
 
 // Default loggers to stdout and stderr
 var (
-	logger    = log.New(os.Stdout, "log-shuttle: ", log.LstdFlags | log.Lshortfile)
-	errLogger = log.New(os.Stderr, "log-shuttle: ", log.LstdFlags | log.Lshortfile)
 
+    log = logging.MustGetLogger("log-shuttle")
 	logToSyslog bool
 )
 
@@ -49,28 +48,33 @@ func mapInputFormat(i string) (int, error) {
 }
 
 // determineLogsURL from the various options favoring each one in turn
-func determineLogsURL(logplexURL, logsURL, cmdLineURL string) string {
+func determineLogsURL(logsURL, cmdLineURL string) string {
 	var envURL string
 
-	if len(logplexURL) > 0 {
-		log.Println("Warning: $LOGPLEX_URL is deprecated, use $LOGS_URL instead")
-		envURL = logplexURL
-	}
-
 	if len(logsURL) > 0 {
-		if len(logplexURL) > 0 {
-			log.Println("Warning: Use of both $LOGPLEX_URL & $LOGS_URL, using $LOGS_URL instead")
-		}
 		envURL = logsURL
 	}
 
 	if len(cmdLineURL) > 0 {
 		if len(envURL) > 0 {
-			log.Println("Warning: Use of both an evnironment variable ($LOGPLEX_URL or $LOGS_URL) and -logs-url, using -logs-url option")
+			log.Warning("Use of both an evnironment variable ($LOGS_URL) and -logs-url, using -logs-url option")
 		}
 		return cmdLineURL
 	}
 	return envURL
+}
+
+// Example format string. Everything except the message has a custom color
+// which is dependent on the log level. Many fields have a custom output
+// formatting too, eg. the time returns the hour down to the milli second.
+var format = logging.MustStringFormatter(
+    `%{color}%{time:2006-01-02 15:04:05} - %{level:-7s} - %{shortfile:-20s} - %{color:reset} %{message}`,
+)
+
+type Password string
+
+func (p Password) Redacted() interface{} {
+    return logging.Redact(string(p))
 }
 
 // parseFlags overrides the properties of the given config using the provided
@@ -135,28 +139,41 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
 
 	flag.Parse()
 
-	if printVersion {
-		fmt.Println(version)
+
+    loggerBackend := logging.NewLogBackend(os.Stdout, "", 0)
+    backendFormatter := logging.NewBackendFormatter(loggerBackend, format)
+    backendLevel := logging.AddModuleLevel(backendFormatter)
+    if c.Verbose == true {
+        backendLevel.SetLevel(logging.DEBUG, "")
+    } else if c.Quiet == true {
+        backendLevel.SetLevel(logging.WARNING, "")
+    } else {
+        backendLevel.SetLevel(logging.INFO, "")
+    }
+
+    errLogger := logging.NewLogBackend(os.Stderr, "", 0)
+
+    errBackendLevel := logging.AddModuleLevel(errLogger)
+    errBackendLevel.SetLevel(logging.ERROR, "")
+
+    logging.SetBackend(backendLevel, errBackendLevel)
+
+
+    if printVersion {
+		log.Info(version)
 		os.Exit(0)
 	}
 
-    logger.SetFlags(log.LstdFlags | log.Lshortfile)
-    logger.SetPrefix(c.Appname + ": ")
-    errLogger.SetFlags(log.LstdFlags | log.Lshortfile)
-    errLogger.SetPrefix(c.Appname + ": ")
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
-	log.SetPrefix(c.Appname + ": ")
-
 	if f != 0 {
-		log.Println("Warning: Use of -front-buff is no longer supported. The flag has no effect and will be removed in the future.")
+        log.Warning("Use of -front-buff is no longer supported. The flag has no effect and will be removed in the future.")
 	}
 
 	if b != 0 {
-		log.Println("Warning: Use of -num-batchers is no longer supported. The flag has no effect and will be removed in the future.")
+		log.Warning("Use of -num-batchers is no longer supported. The flag has no effect and will be removed in the future.")
 	}
 
 	if statsAddr != "" {
-		log.Println("Warning: Use of -stats-addr is deprecated and will be dropped in the future.")
+		log.Warning("Use of -stats-addr is deprecated and will be dropped in the future.")
 	}
 
 	var err error
@@ -166,7 +183,7 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
 	}
 
 	if skipHeaders {
-		log.Println("Warning: Use of -skip-headers is deprecated, use -input-format=rfc5424 instead")
+		log.Warning("Use of -skip-headers is deprecated, use -input-format=rfc5424 instead")
 		switch c.InputFormat {
 		case shuttle.InputFormatRaw:
 			// Massage InputFormat as that's what is used internally
@@ -178,49 +195,45 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
 		}
 	}
 
-	if c.Verbose == true {
-		log.Println("-------------------- Config Settings --------------------")
-		log.Printf("MaxLineLength:           %v\n", c.MaxLineLength)
-		log.Printf("Quiet:                   %v\n", c.Quiet)
-		log.Printf("Verbose:                 %v\n", c.Verbose)
-		log.Printf("SkipVerify:              %v\n", c.SkipVerify)
-		log.Printf("Prival:                  %v\n", c.Prival)
-		log.Printf("Version:                 %v\n", c.Version)
-		log.Printf("Procid:                  %v\n", c.Procid)
-		log.Printf("Appname:                 %v\n", c.Appname)
-		log.Printf("Hostname:                %v\n", c.Hostname)
-		log.Printf("Msgid:                   %v\n", c.Msgid)
-		log.Printf("LogsURL:                 %v\n", c.LogsURL)
-		log.Printf("StatsSource:             %v\n", c.StatsSource)
-		log.Printf("StatsInterval:           %v\n", c.StatsInterval)
-		log.Printf("MaxAttempts:             %v\n", c.MaxAttempts)
-		log.Printf("InputFormat:             %v\n", c.InputFormat)
-		log.Printf("NumOutlets:              %v\n", c.NumOutlets)
-		log.Printf("WaitDuration:            %v\n", c.WaitDuration)
-		log.Printf("BatchSize:               %v\n", c.BatchSize)
-		log.Printf("BackBuff:                %v\n", c.BackBuff)
-		log.Printf("Timeout:                 %v\n", c.Timeout)
-		log.Printf("ID:                      %v\n", c.ID)
-		log.Printf("Logger:                  %v\n", c.Logger)
-		log.Printf("ErrLogger:               %v\n", c.ErrLogger)
-		log.Printf("FormatterFunc:           %v\n", c.FormatterFunc)
-		log.Printf("Drop:                    %v\n", c.Drop)
-		log.Printf("UseGzip:                 %v\n", c.UseGzip)
-		log.Printf("KinesisShards:           %v\n", c.KinesisShards)
-		log.Printf("L2met_BufferSize:        %v\n", c.L2met_BufferSize)
-		log.Printf("L2met_Concurrency:       %v\n", c.L2met_Concurrency)
-		log.Printf("L2met_FlushInterval:     %v\n", c.L2met_FlushInterval)
-		log.Printf("L2met_MaxPartitions:     %v\n", c.L2met_MaxPartitions)
-		log.Printf("L2met_OutletAPIToken:    %v\n", c.L2met_OutletAPIToken)
-		log.Printf("L2met_OutletInterval:    %v\n", c.L2met_OutletInterval)
-		log.Printf("L2met_OutletRetries:     %v\n", c.L2met_OutletRetries)
-		log.Printf("L2met_OutletTtl:         %v\n", c.L2met_OutletTtl)
-		log.Printf("L2met_ReceiverDeadline:  %v\n", c.L2met_ReceiverDeadline)
-		log.Printf("L2met_UseDataDogOutlet:  %v\n", c.L2met_UseDataDogOutlet)
-        log.Printf("L2met_UseNewRelicOutlet: %v\n", c.L2met_UseNewRelicOutlet)
-		log.Println("---------------------------------------------------------")
-	}
-
+    log.Debug("-------------------- Config Settings --------------------")
+    log.Debugf("MaxLineLength:           %v", c.MaxLineLength)
+    log.Debugf("Quiet:                   %v", c.Quiet)
+    log.Debugf("Verbose:                 %v", c.Verbose)
+    log.Debugf("SkipVerify:              %v", c.SkipVerify)
+    log.Debugf("Prival:                  %v", c.Prival)
+    log.Debugf("Version:                 %v", c.Version)
+    log.Debugf("Procid:                  %v", c.Procid)
+    log.Debugf("Appname:                 %v", c.Appname)
+    log.Debugf("Hostname:                %v", c.Hostname)
+    log.Debugf("Msgid:                   %v", c.Msgid)
+    log.Debugf("LogsURL:                 %v", Password(c.LogsURL))
+    log.Debugf("StatsSource:             %v", c.StatsSource)
+    log.Debugf("StatsInterval:           %v", c.StatsInterval)
+    log.Debugf("MaxAttempts:             %v", c.MaxAttempts)
+    log.Debugf("InputFormat:             %v", c.InputFormat)
+    log.Debugf("NumOutlets:              %v", c.NumOutlets)
+    log.Debugf("WaitDuration:            %v", c.WaitDuration)
+    log.Debugf("BatchSize:               %v", c.BatchSize)
+    log.Debugf("BackBuff:                %v", c.BackBuff)
+    log.Debugf("Timeout:                 %v", c.Timeout)
+    log.Debugf("ID:                      %v", c.ID)
+    log.Debugf("FormatterFunc:           %v", c.FormatterFunc)
+    log.Debugf("Drop:                    %v", c.Drop)
+    log.Debugf("UseGzip:                 %v", c.UseGzip)
+    log.Debugf("KinesisShards:           %v", c.KinesisShards)
+    log.Debugf("L2met_BufferSize:        %v", c.L2met_BufferSize)
+    log.Debugf("L2met_Concurrency:       %v", c.L2met_Concurrency)
+    log.Debugf("L2met_FlushInterval:     %v", c.L2met_FlushInterval)
+    log.Debugf("L2met_MaxPartitions:     %v", c.L2met_MaxPartitions)
+    log.Debugf("L2met_OutletAPIToken:    %v", Password(c.L2met_OutletAPIToken))
+    log.Debugf("L2met_OutletInterval:    %v", c.L2met_OutletInterval)
+    log.Debugf("L2met_OutletRetries:     %v", c.L2met_OutletRetries)
+    log.Debugf("L2met_OutletTtl:         %v", c.L2met_OutletTtl)
+    log.Debugf("L2met_ReceiverDeadline:  %v", c.L2met_ReceiverDeadline)
+    log.Debugf("L2met_UseDataDogOutlet:  %v", c.L2met_UseDataDogOutlet)
+    log.Debugf("L2met_UseNewRelicOutlet: %v", c.L2met_UseNewRelicOutlet)
+    log.Debug("---------------------------------------------------------")
+    
 	return c, nil
 }
 
@@ -228,30 +241,30 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
 func validateURL(u string) (*url.URL, error) {
 	oURL, err := url.Parse(u)
 	if err != nil {
-		return nil, fmt.Errorf("Error parsing URL: %v", err.Error())
+		return nil, fmt.Errorf("Error parsing URL: %s", err.Error())
 	}
 
 	switch oURL.Scheme {
 	case "http", "https":
 		// no-op these are good
 	default:
-		return nil, fmt.Errorf("Invalid URL scheme: %v", u)
+		return nil, fmt.Errorf("Invalid URL scheme: %s", u)
 	}
 
 	if oURL.Host == "" {
-		return nil, fmt.Errorf("No host: %v", u)
+		return nil, fmt.Errorf("No host: %s", u)
 	}
 
 	parts := strings.Split(oURL.Host, ":")
 
 	if len(parts) > 2 {
-		return nil, fmt.Errorf("Invalid host specified: %v", u)
+		return nil, fmt.Errorf("Invalid host specified: %s", u)
 	}
 
 	if len(parts) == 2 {
 		_, err := strconv.Atoi(parts[1])
 		if err != nil {
-			return nil, fmt.Errorf("Invalid port specified: %v", u)
+			return nil, fmt.Errorf("Invalid port specified: %s", u)
 		}
 	}
 
@@ -265,10 +278,10 @@ func getConfig() (shuttle.Config, error) {
 	}
 
 	if c.MaxAttempts < 1 {
-		return c, fmt.Errorf("-max-attempts must be >= 1 (got: %v)", c.MaxAttempts)
+		return c, fmt.Errorf("-max-attempts must be >= 1 (got: %d)", c.MaxAttempts)
 	}
 
-	c.LogsURL = determineLogsURL(os.Getenv("LOGPLEX_URL"), os.Getenv("LOGS_URL"), c.LogsURL)
+	c.LogsURL = determineLogsURL(os.Getenv("LOGS_URL"), c.LogsURL)
 	oURL, err := validateURL(c.LogsURL)
 	if err != nil {
 		return c, err
@@ -297,7 +310,7 @@ func determineOutputFormatter(u *url.URL) shuttle.NewHTTPFormatterFunc {
 func main() {
 	config, err := getConfig()
 	if err != nil {
-		errLogger.Fatalf("error=%q\n", err)
+		log.Fatalf("error=%q\n", err)
 	}
 
 	config.ID = version
@@ -307,8 +320,6 @@ func main() {
 	//}
 
    mchan := metchan.New(
-			config.Verbose,
-			config.Quiet,
 			config.L2met_OutletAPIToken,
 			config.L2met_Concurrency,
 			config.L2met_BufferSize,
@@ -317,24 +328,24 @@ func main() {
     mchan.Start()
 
     st := store.NewMemStore()
-    if !config.Quiet && config.Verbose {
-        log.Println("at=initialized-mem-store")
-    }
+
+    log.Debug("at=initialized-mem-store")
+
 	s := shuttle.NewShuttle(config, st, mchan)
 
 	// Setup the loggers before doing anything else
 	if logToSyslog {
 		s.Logger, err = syslog.NewLogger(syslog.LOG_INFO|syslog.LOG_SYSLOG, 0)
 		if err != nil {
-			errLogger.Fatalf(`error="Unable to setup syslog logger: %s\n"`, err)
+			log.Fatalf(`error="Unable to setup syslog logger: %s\n"`, err)
 		}
 		s.ErrLogger, err = syslog.NewLogger(syslog.LOG_ERR|syslog.LOG_SYSLOG, 0)
 		if err != nil {
-			errLogger.Fatalf(`error="Unable to setup syslog error logger: %s\n"`, err)
+			log.Fatalf(`error="Unable to setup syslog error logger: %s\n"`, err)
 		}
 	} else {
-		s.Logger = logger
-		s.ErrLogger = errLogger
+		//s.Logger = logger
+		//s.ErrLogger = errLogger
 	}
 
 	s.LoadReader(os.Stdin)
@@ -347,7 +358,7 @@ func main() {
 
 	s.Launch()
 
-	go LogFmtMetricsEmitter(s.MetricsRegistry, config.StatsSource, config.StatsInterval, s.Logger)
+	go LogFmtMetricsEmitter(s.MetricsRegistry, config.StatsSource, config.StatsInterval)
 
 	// blocks until the readers all exit
 	s.WaitForReadersToFinish()

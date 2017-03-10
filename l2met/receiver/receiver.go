@@ -4,12 +4,6 @@
 package receiver
 
 import (
-	//"bufio"
-	//"bytes"
-	"log"
-	//"io/ioutil"
-	//"net/http"
-	//"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -18,7 +12,10 @@ import (
 	"github.com/winkapp/log-shuttle/l2met/metchan"
 	"github.com/winkapp/log-shuttle/l2met/parser"
 	"github.com/winkapp/log-shuttle/l2met/store"
+    "github.com/op/go-logging"
 )
+
+var logger = logging.MustGetLogger("log-shuttle")
 
 // We read the body of an http request and then close the request.
 // The processing of the body happens in a seperate routine. We use
@@ -88,9 +85,7 @@ func NewReceiver(buffsize int, flushInt time.Duration, ccu int, rcvrd int64, s s
 }
 
 func (r *Receiver) Receive(b []byte, opts map[string][]string) {
-	if r.verbose == true {
-		log.Printf("Received: %v - %v\n", string(b), opts)
-	}
+    logger.Debugf("Received: %v - %v\n", string(b), opts)
 	r.inFlight.Add(1)
 	r.Inbox <- &LogRequest{b, opts}
 }
@@ -195,13 +190,20 @@ func (r *Receiver) transfer() {
 func (r *Receiver) outlet() {
 	for b := range r.Outbox {
 		startPut := time.Now()
-		if r.verbose {
-			log.Printf("Putting bucket in store: %v\n", b.Id)
-		}
+        logger.Debugf("Putting bucket in store: %v", b)
+        logger.Debugf("    Vals:        %v", b.Vals)
+        logger.Debugf("    Sum:         %f", b.Sum)
+        logger.Debugf("    Time:        %v", b.Id.Time)
+        logger.Debugf("    Resolution:  %v", b.Id.Resolution)
+        logger.Debugf("    Auth:        %s", b.Id.Auth)
+        logger.Debugf("    ReadyAt:     %v", b.Id.ReadyAt)
+        logger.Debugf("    Name:        %s", b.Id.Name)
+        logger.Debugf("    Units:       %s", b.Id.Units)
+        logger.Debugf("    Source:      %s", b.Id.Source)
+        logger.Debugf("    Type:        %s", b.Id.Type)
+        logger.Debugf("    Tags:        %s", b.Id.Tags)
 		if err := r.Store.Put(b); err != nil {
-			if !r.quiet {
-				log.Printf("error=%s\n", err)
-			}
+            logger.Errorf("error=%s\n", err)
 		}
 		r.Mchan.Time("receiver.outlet", startPut)
 		r.inFlight.Done()
@@ -270,14 +272,14 @@ func (r *Receiver) Report() {
 		nr := atomic.LoadUint64(&r.numReqs)
 		atomic.AddUint64(&r.numBuckets, -nb)
 		atomic.AddUint64(&r.numReqs, -nr)
-		if r.verbose {
-			if nb > 0 {
-				log.Printf("receiver.http.num-buckets=%d\n", nb)
-			}
-			if nr > 0 {
-				log.Printf("receiver.http.num-reqs=%d\n", nr)
-			}
-		}
+
+        if nb > 0 {
+            logger.Debugf("receiver.http.num-buckets=%d\n", nb)
+        }
+        if nr > 0 {
+            logger.Debugf("receiver.http.num-reqs=%d\n", nr)
+        }
+
 		pre := "receiver.buffer."
 		r.Mchan.Measure(pre+"inbox", float64(len(r.Inbox)))
 		r.Mchan.Measure(pre+"outbox", float64(len(r.Outbox)))
