@@ -1,0 +1,20 @@
+machine:
+  services:
+    - docker
+
+dependencies:
+  pre:
+    - docker build --rm=false -t quay.io/winkapp/${CIRCLE_PROJECT_REPONAME}:${CIRCLE_SHA1} .
+
+test:
+  override:
+    - docker run quay.io/winkapp/${CIRCLE_PROJECT_REPONAME}:${CIRCLE_SHA1} go test -v ./...
+
+deployment:
+  all:
+    branch: [master, production]
+    commands:
+      - docker tag quay.io/winkapp/${CIRCLE_PROJECT_REPONAME}:${CIRCLE_SHA1} quay.io/winkapp/${CIRCLE_PROJECT_REPONAME}:${CIRCLE_BRANCH}
+      - docker login -e $QUAY_EMAIL -u $QUAY_USER -p $QUAY_PASS quay.io
+      - docker push quay.io/winkapp/${CIRCLE_PROJECT_REPONAME}
+
