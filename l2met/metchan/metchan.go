@@ -4,29 +4,29 @@
 package metchan
 
 import (
-	"strings"
-	"sync"
-	"time"
+    "strings"
+    "sync"
+    "time"
 
-	"github.com/winkapp/log-shuttle/l2met/bucket"
-	"github.com/winkapp/log-shuttle/l2met/metrics"
+    "github.com/winkapp/log-shuttle/l2met/bucket"
+    "github.com/winkapp/log-shuttle/l2met/metrics"
     "github.com/op/go-logging"
 )
 
 var logger = logging.MustGetLogger("log-shuttle")
 
 type Channel struct {
-	// The time by which metchan will aggregate internal metrics.
-	FlushInterval time.Duration
-	// The Channel is thread-safe.
-	sync.Mutex
-	token      string
-	Enabled    bool
-	Buffer     map[string]*bucket.Bucket
-	outbox     chan *bucket.Metric
-	source     string
-	appName    string
-	numOutlets int
+    // The time by which metchan will aggregate internal metrics.
+    FlushInterval time.Duration
+    // The Channel is thread-safe.
+    sync.Mutex
+    token      string
+    Enabled    bool
+    Buffer     map[string]*bucket.Bucket
+    outbox     chan *bucket.Metric
+    source     string
+    appName    string
+    numOutlets int
 }
 
 // Returns an initialized Metchan Channel.
@@ -36,21 +36,21 @@ type Channel struct {
 // If verbose is set to true, the metric will be printed to STDOUT
 // regardless of whether the metric is sent upstream.
 func New(token string, ccu int, buffsize int, appName string, hostName string) *Channel {
-	c := new(Channel)
+    c := new(Channel)
 
     c.Enabled = true
     c.token = token
-	c.numOutlets = ccu
+    c.numOutlets = ccu
 
-	// Internal Datastructures.
-	c.Buffer = make(map[string]*bucket.Bucket)
-	c.outbox = make(chan *bucket.Metric, buffsize)
+    // Internal Datastructures.
+    c.Buffer = make(map[string]*bucket.Bucket)
+    c.outbox = make(chan *bucket.Metric, buffsize)
 
-	// Default flush interval.
-	c.FlushInterval = time.Second * 5
+    // Default flush interval.
+    c.FlushInterval = time.Second * 5
 
-	c.source = hostName
-	c.appName = appName
+    c.source = hostName
+    c.appName = appName
 
     logger.Debugf("MetChan token:         %s", logging.Redact(c.token))
     logger.Debugf("MetChan source:        %s", c.source)
@@ -58,24 +58,24 @@ func New(token string, ccu int, buffsize int, appName string, hostName string) *
     logger.Debugf("MetChan numOutlets:    %d", c.numOutlets)
     logger.Debugf("MetChan FlushInterval: %v", c.FlushInterval)
 
-	return c
+    return c
 }
 
 func (c *Channel) Start() {
-	if c.Enabled {
-		go c.scheduleFlush()
-		for i := 0; i < c.numOutlets; i++ {
-			go c.outlet()
-		}
-	}
+    if c.Enabled {
+        go c.scheduleFlush()
+        for i := 0; i < c.numOutlets; i++ {
+            go c.outlet()
+        }
+    }
 }
 
 // Provide the time at which you started your measurement.
 // Places the measurement in a buffer to be aggregated and
 // eventually flushed upstream.
 func (c *Channel) Time(name string, t time.Time) {
-	elapsed := time.Since(t) / time.Millisecond
-	c.Measure(name, float64(elapsed))
+    elapsed := time.Since(t) / time.Millisecond
+    c.Measure(name, float64(elapsed))
 }
 
 func (c *Channel) Measure(name string, v float64) {
@@ -83,80 +83,80 @@ func (c *Channel) Measure(name string, v float64) {
         logger.Debugf("source=%s measure#%s=%f", c.source, name, v)
     }
 
-	if !c.Enabled {
-		return
-	}
-	id := &bucket.Id{
-		Resolution: c.FlushInterval,
-		Name:       c.appName + "." + name,
-		Units:      "ms",
-		Source:     c.source,
-		Type:       "measurement",
-	}
-	b := c.getBucket(id)
-	b.Append(v)
+    if !c.Enabled {
+        return
+    }
+    id := &bucket.Id{
+        Resolution: c.FlushInterval,
+        Name:       c.appName + "." + name,
+        Units:      "ms",
+        Source:     c.source,
+        Type:       "measurement",
+    }
+    b := c.getBucket(id)
+    b.Append(v)
 }
 
 func (c *Channel) CountReq(user string) {
-	if !c.Enabled {
-		return
-	}
-	usr := strings.Replace(user, "@", "_at_", -1)
-	id := &bucket.Id{
-		Resolution: c.FlushInterval,
-		Name:       c.appName + "." + "receiver.requests",
-		Units:      "requests",
-		Source:     usr,
-		Type:       "counter",
-	}
-	b := c.getBucket(id)
-	b.Incr(1)
+    if !c.Enabled {
+        return
+    }
+    usr := strings.Replace(user, "@", "_at_", -1)
+    id := &bucket.Id{
+        Resolution: c.FlushInterval,
+        Name:       c.appName + "." + "receiver.requests",
+        Units:      "requests",
+        Source:     usr,
+        Type:       "counter",
+    }
+    b := c.getBucket(id)
+    b.Incr(1)
 }
 
 func (c *Channel) getBucket(id *bucket.Id) *bucket.Bucket {
-	c.Lock()
-	defer c.Unlock()
-	key := id.Name + ":" + id.Source
-	b, ok := c.Buffer[key]
-	if !ok {
-		b = &bucket.Bucket{Id: id}
-		b.Vals = make([]float64, 1, 10000)
-		c.Buffer[key] = b
-	}
-	// Instead of creating a new bucket struct with a new Vals slice
-	// We will re-use the old bucket and reset the slice. This
-	// dramatically decreases the amount of arrays created and thus
-	// led to better memory utilization.
-	latest := time.Now().Truncate(c.FlushInterval)
-	if b.Id.Time != latest {
-		b.Id.Time = latest
-		b.Reset()
-	}
-	return b
+    c.Lock()
+    defer c.Unlock()
+    key := id.Name + ":" + id.Source
+    b, ok := c.Buffer[key]
+    if !ok {
+        b = &bucket.Bucket{Id: id}
+        b.Vals = make([]float64, 1, 10000)
+        c.Buffer[key] = b
+    }
+    // Instead of creating a new bucket struct with a new Vals slice
+    // We will re-use the old bucket and reset the slice. This
+    // dramatically decreases the amount of arrays created and thus
+    // led to better memory utilization.
+    latest := time.Now().Truncate(c.FlushInterval)
+    if b.Id.Time != latest {
+        b.Id.Time = latest
+        b.Reset()
+    }
+    return b
 }
 
 func (c *Channel) scheduleFlush() {
-	for range time.Tick(c.FlushInterval) {
-		c.flush()
-	}
+    for range time.Tick(c.FlushInterval) {
+        c.flush()
+    }
 }
 
 func (c *Channel) flush() {
-	c.Lock()
-	defer c.Unlock()
-	for _, b := range c.Buffer {
-		for _, m := range b.Metrics() {
-			select {
-			case c.outbox <- m:
-			default:
+    c.Lock()
+    defer c.Unlock()
+    for _, b := range c.Buffer {
+        for _, m := range b.Metrics() {
+            select {
+            case c.outbox <- m:
+            default:
                 logger.Error("error=metchan-drop")
-			}
-		}
-	}
+            }
+        }
+    }
 }
 
 func (c *Channel) outlet() {
-	for met := range c.outbox {
+    for met := range c.outbox {
         var ignore = strings.Split(met.Name, ".")[1]
         if ignore == "datadog-outlet" || ignore == "reader" || ignore == "receiver" {
 
@@ -179,18 +179,18 @@ func (c *Channel) outlet() {
             logger.Debugf("IsComplex:  %v", met.IsComplex)
             logger.Debug("-----------------------------------------------")
         }
-		if err := c.post(met); err != nil {
-			logger.Errorf("at=metchan-post error=%s", err)
-		}
-	}
+        if err := c.post(met); err != nil {
+            logger.Errorf("at=metchan-post error=%s", err)
+        }
+    }
 }
 
 func (c *Channel) post(m *bucket.Metric) error {
-	// FIXME: hardcoded to push to datadog, should be configurable?
-	dd := metrics.DataDogConverter{Src: m}
-	return dd.Post(c.token)
+    // FIXME: hardcoded to push to datadog, should be configurable?
+    dd := metrics.DataDogConverter{Src: m}
+    return dd.Post(c.token)
 }
 
 func (c *Channel) Token() string {
-	return c.token
+    return c.token
 }

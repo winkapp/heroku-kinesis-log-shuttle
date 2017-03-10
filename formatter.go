@@ -1,8 +1,8 @@
 package shuttle
 
 import (
-	"io"
-	"net/http"
+    "io"
+    "net/http"
 )
 
 // SubFormatter formats a complete batch or a subsection of a batch. It may
@@ -11,15 +11,15 @@ import (
 // formatter may emitt more (likely) or less bytes for a given LogLine than the
 // actual Logline.
 type SubFormatter interface {
-	MsgCount() int // MsgCount is the number of messages after formatting
-	io.Reader
+    MsgCount() int // MsgCount is the number of messages after formatting
+    io.Reader
 }
 
 // HTTPFormatter is the interface that http outlets use to format a HTTP
 // request.
 type HTTPFormatter interface {
-	Request() (*http.Request, error) // Request() returns a *http.Request ready to be handled by an outlet
-	SubFormatter
+    Request() (*http.Request, error) // Request() returns a *http.Request ready to be handled by an outlet
+    SubFormatter
 }
 
 // NewHTTPFormatterFunc defines the function type for defining creating and
