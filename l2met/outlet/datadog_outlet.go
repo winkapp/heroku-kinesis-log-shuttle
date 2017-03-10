@@ -136,11 +136,11 @@ func (l *DataDogOutlet) outlet() {
 
         for m := range payloads {
             logger.Debugf("---------------------- %v ----------------------", m)
-            logger.Debugf("m.Metric:  %v", payloads[m].Metric)
-            logger.Debugf("m.Host:    %v", payloads[m].Host)
+            logger.Debugf("m.Metric:  %s", payloads[m].Metric)
+            logger.Debugf("m.Host:    %s", payloads[m].Host)
             logger.Debugf("m.Tags:    %v", payloads[m].Tags)
-            logger.Debugf("m.Type:    %v", payloads[m].Type)
-            logger.Debugf("m.Auth:    %v", payloads[m].Auth)
+            logger.Debugf("m.Type:    %s", payloads[m].Type)
+            logger.Debugf("m.Auth:    %s", payloads[m].Auth)
             logger.Debugf("m.Points:  %v", payloads[m].Points)
             logger.Debug("------------------------------------------------")
         }
