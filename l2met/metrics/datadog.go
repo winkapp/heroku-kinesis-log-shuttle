@@ -10,6 +10,7 @@ import (
 
     "github.com/winkapp/log-shuttle/l2met/bucket"
     "github.com/op/go-logging"
+    //"strings"
     "strings"
 )
 
@@ -123,6 +124,7 @@ func (d DataDogConverter) Post(api_key string) error {
     }
 
     req, err := DataDogCreateRequest(DataDogUrl, api_key, body)
+
     resp, err := http.DefaultClient.Do(req)
     if err != nil {
         return err

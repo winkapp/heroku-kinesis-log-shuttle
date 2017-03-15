@@ -61,13 +61,9 @@ type Receiver struct {
     // Publish receiver metrics on this channel.
     Mchan           *metchan.Channel
     inFlight        sync.WaitGroup
-
-    // Output Controls
-    verbose         bool
-    quiet           bool
 }
 
-func NewReceiver(buffsize int, flushInt time.Duration, ccu int, rcvrd int64, s store.Store, m *metchan.Channel, verbose bool, quiet bool) *Receiver {
+func NewReceiver(buffsize int, flushInt time.Duration, ccu int, rcvrd int64, s store.Store, m *metchan.Channel) *Receiver {
     r := new(Receiver)
     r.Inbox = make(chan *LogRequest, buffsize)
     r.Outbox = make(chan *bucket.Bucket, buffsize)
@@ -78,14 +74,12 @@ func NewReceiver(buffsize int, flushInt time.Duration, ccu int, rcvrd int64, s s
     r.numBuckets = uint64(0)
     r.numReqs = uint64(0)
     r.Store = s
-    r.verbose = verbose
-    r.quiet = quiet
     r.Mchan = m
     return r
 }
 
 func (r *Receiver) Receive(b []byte, opts map[string][]string) {
-    logger.Debugf("Received: %v - %v\n", string(b), opts)
+    logger.Debugf("Received: body: %q - opts: %+v", string(b), opts)
     r.inFlight.Add(1)
     r.Inbox <- &LogRequest{b, opts}
 }
@@ -195,7 +189,7 @@ func (r *Receiver) outlet() {
         logger.Debugf("    Sum:         %f", b.Sum)
         logger.Debugf("    Time:        %v", b.Id.Time)
         logger.Debugf("    Resolution:  %v", b.Id.Resolution)
-        logger.Debugf("    Auth:        %s", b.Id.Auth)
+        logger.Debugf("    Auth:        %s", logging.Redact(b.Id.Auth))
         logger.Debugf("    ReadyAt:     %v", b.Id.ReadyAt)
         logger.Debugf("    Name:        %s", b.Id.Name)
         logger.Debugf("    Units:       %s", b.Id.Units)
@@ -203,7 +197,7 @@ func (r *Receiver) outlet() {
         logger.Debugf("    Type:        %s", b.Id.Type)
         logger.Debugf("    Tags:        %s", b.Id.Tags)
         if err := r.Store.Put(b); err != nil {
-            logger.Errorf("error=%s\n", err)
+            logger.Errorf("error=%s", err)
         }
         r.Mchan.Time("receiver.outlet", startPut)
         r.inFlight.Done()
@@ -274,10 +268,10 @@ func (r *Receiver) Report() {
         atomic.AddUint64(&r.numReqs, -nr)
 
         if nb > 0 {
-            logger.Debugf("receiver.http.num-buckets=%d\n", nb)
+            logger.Debugf("receiver.http.num-buckets=%d", nb)
         }
         if nr > 0 {
-            logger.Debugf("receiver.http.num-reqs=%d\n", nr)
+            logger.Debugf("receiver.http.num-reqs=%d", nr)
         }
 
         pre := "receiver.buffer."

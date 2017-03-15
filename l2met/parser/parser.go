@@ -16,9 +16,12 @@ var logger = logging.MustGetLogger("log-shuttle")
 type options map[string][]string
 
 var (
-    measurePrefix = "measure#"
-    samplePrefix  = "sample#"
-    counterPrefix = "count#"
+    measurePrefix      = "measure#"
+    measurePrefixShort = "m#"
+    samplePrefix       = "sample#"
+    samplePrefixShort  = "s#"
+    counterPrefix      = "count#"
+    counterPrefixShort = "c#"
 )
 
 type parser struct {
@@ -54,50 +57,47 @@ func (p *parser) parse() {
 }
 
 func (p *parser) handleSamples(t *tuple) error {
-    if !strings.HasPrefix(t.Name(), samplePrefix) {
-        return nil
+    if strings.HasPrefix(t.Name(), samplePrefixShort) || strings.HasPrefix(t.Name(), samplePrefix) {
+        id := new(bucket.Id)
+        p.buildId(id, t)
+        id.Type = "sample"
+        val, err := t.Float64()
+        if err != nil {
+            logger.Errorf("error=%v", err)
+            return err
+        }
+        p.out <- &bucket.Bucket{Id: id, Vals: []float64{val}}
     }
-    id := new(bucket.Id)
-    p.buildId(id, t)
-    id.Type = "sample"
-    val, err := t.Float64()
-    if err != nil {
-        logger.Errorf("error=%v", err)
-        return err
-    }
-    p.out <- &bucket.Bucket{Id: id, Vals: []float64{val}}
     return nil
 }
 
 func (p *parser) handleCounters(t *tuple) error {
-    if !strings.HasPrefix(t.Name(), counterPrefix) {
-        return nil
+    if strings.HasPrefix(t.Name(), counterPrefixShort) || strings.HasPrefix(t.Name(), counterPrefix) {
+        id := new(bucket.Id)
+        p.buildId(id, t)
+        id.Type = "counter"
+        val, err := t.Float64()
+        if err != nil {
+            logger.Errorf("error=%v", err)
+            return err
+        }
+        p.out <- &bucket.Bucket{Id: id, Vals: []float64{val}}
     }
-    id := new(bucket.Id)
-    p.buildId(id, t)
-    id.Type = "counter"
-    val, err := t.Float64()
-    if err != nil {
-        logger.Errorf("error=%v", err)
-        return err
-    }
-    p.out <- &bucket.Bucket{Id: id, Vals: []float64{val}}
     return nil
 }
 
 func (p *parser) handlMeasurements(t *tuple) error {
-    if !strings.HasPrefix(t.Name(), measurePrefix) {
-        return nil
+    if strings.HasPrefix(t.Name(), measurePrefixShort) || strings.HasPrefix(t.Name(), measurePrefix) {
+        id := new(bucket.Id)
+        p.buildId(id, t)
+        id.Type = "measurement"
+        val, err := t.Float64()
+        if err != nil {
+            logger.Errorf("error=%v", err)
+            return err
+        }
+        p.out <- &bucket.Bucket{Id: id, Vals: []float64{val}}
     }
-    id := new(bucket.Id)
-    p.buildId(id, t)
-    id.Type = "measurement"
-    val, err := t.Float64()
-    if err != nil {
-        logger.Errorf("error=%v", err)
-        return err
-    }
-    p.out <- &bucket.Bucket{Id: id, Vals: []float64{val}}
     return nil
 }
 
@@ -132,12 +132,16 @@ func (p *parser) Prefix(suffix string) string {
     //Remove measure. from the name if present.
     if strings.HasPrefix(suffix, measurePrefix) {
         suffix = suffix[len(measurePrefix):]
-    }
-    if strings.HasPrefix(suffix, counterPrefix) {
+    } else if strings.HasPrefix(suffix, measurePrefixShort) {
+        suffix = suffix[len(measurePrefixShort):]
+    } else if strings.HasPrefix(suffix, counterPrefix) {
         suffix = suffix[len(counterPrefix):]
-    }
-    if strings.HasPrefix(suffix, samplePrefix) {
+    } else if strings.HasPrefix(suffix, counterPrefixShort) {
+        suffix = suffix[len(counterPrefixShort):]
+    } else if strings.HasPrefix(suffix, samplePrefix) {
         suffix = suffix[len(samplePrefix):]
+    } else if strings.HasPrefix(suffix, samplePrefixShort) {
+        suffix = suffix[len(samplePrefixShort):]
     }
     pre, present := p.opts["prefix"]
     if !present {

@@ -11,6 +11,10 @@ import (
     "sync"
     "testing"
     "time"
+
+    "github.com/winkapp/log-shuttle/l2met/store"
+    "github.com/winkapp/log-shuttle/l2met/metchan"
+    "github.com/op/go-logging"
 )
 
 var longerTestData = []byte(`Lebowski ipsum what in God's holy name are you blathering about?
@@ -30,6 +34,8 @@ func newTestConfig() Config {
     // Defaults should be good for most tests
     config := NewConfig()
     config.LogsURL = "http://"
+    config.Hostname = "shuttle"
+    config.ComputeHeader()
     return config
 }
 
@@ -86,10 +92,6 @@ func (b *loopingBuffer) bytesRead() int {
     return v
 }
 
-func NewLongerTestInput() *bytes.Reader {
-    return bytes.NewReader(longerTestData)
-}
-
 func NewTestInput() io.ReadCloser {
     data := []byte(`Hello World
 Test Line 2
@@ -142,15 +144,23 @@ func TestIntegration(t *testing.T) {
     config := newTestConfig()
     config.LogsURL = ts.URL
 
-    shut := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+
+    shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
     shut.LoadReader(input)
     shut.Launch()
     shut.WaitForReadersToFinish()
     shut.Land()
 
-    pat1 := regexp.MustCompile(`78 <190>1 [0-9T:\+\-\.]+ shuttle token shuttle - - Hello World`)
-    pat2 := regexp.MustCompile(`78 <190>1 [0-9T:\+\-\.]+ shuttle token shuttle - - Test Line 2`)
+    pat1 := regexp.MustCompile(`78 <190>1 [0-9T:+\-.]+ shuttle token shuttle - - Hello World`)
+    pat2 := regexp.MustCompile(`78 <190>1 [0-9T:+\-.]+ shuttle token shuttle - - Test Line 2`)
 
     if !pat1.Match(th.Actual) {
         t.Fatalf("actual=%s\n", string(th.Actual))
@@ -172,16 +182,22 @@ func TestInputFormatRFC5424Integration(t *testing.T) {
     config := newTestConfig()
     config.LogsURL = ts.URL
     config.InputFormat = InputFormatRFC5424
-
-    shut := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+    shut := NewShuttle(config, st, mchan)
     input := NewTestInputWithHeaders()
     shut.LoadReader(input)
     shut.Launch()
     shut.WaitForReadersToFinish()
     shut.Land()
 
-    pat1 := regexp.MustCompile(`90 <13>1 2013-09-25T01:16:49\.371356\+00:00 host token web\.1 - \[meta sequenceId="1"\] message 1`)
-    pat2 := regexp.MustCompile(`90 <13>1 2013-09-25T01:16:49\.402923\+00:00 host token web\.1 - \[meta sequenceId="2"\] message 2`)
+    pat1 := regexp.MustCompile(`90 <13>1 2013-09-25T01:16:49\.371356\+00:00 host token web\.1 - \[meta sequenceId="1"] message 1`)
+    pat2 := regexp.MustCompile(`90 <13>1 2013-09-25T01:16:49\.402923\+00:00 host token web\.1 - \[meta sequenceId="2"] message 2`)
 
     if !pat1.Match(th.Actual) {
         t.Fatalf("actual=%s\n", string(th.Actual))
@@ -200,7 +216,14 @@ func TestDrops(t *testing.T) {
     config.LogsURL = ts.URL
     config.InputFormat = InputFormatRaw
 
-    shut := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+    shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
     shut.LoadReader(input)
     shut.Launch()
@@ -209,14 +232,14 @@ func TestDrops(t *testing.T) {
     shut.WaitForReadersToFinish()
     shut.Land()
 
-    pat1 := regexp.MustCompile(`138 <172>1 [0-9T:\+\-\.]+ heroku token log-shuttle - - Error L12: 2 messages dropped since [0-9T:\+\-\.]+\n`)
+    pat1 := regexp.MustCompile(`138 <172>1 [0-9T:+\-.]+ heroku token log-shuttle - - Error L12: 2 messages dropped since [0-9T:+\-.]+\n`)
     if !pat1.Match(th.Actual) {
         t.Fatalf("actual=%s\n", string(th.Actual))
     }
 
     dropHeader, ok := th.Headers["Logplex-Drop-Count"]
     if !ok {
-        t.Fatalf("Header Logplex-Drop-Count not found in response")
+        t.Fatal("Header Logplex-Drop-Count not found in response")
     }
 
     if dropHeader[0] != "2" {
@@ -238,7 +261,14 @@ func TestLost(t *testing.T) {
     config.LogsURL = ts.URL
     config.InputFormat = InputFormatRaw
 
-    shut := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+    shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
     shut.LoadReader(input)
     shut.Launch()
@@ -249,14 +279,14 @@ func TestLost(t *testing.T) {
     shut.WaitForReadersToFinish()
     shut.Land()
 
-    pat1 := regexp.MustCompile(`135 <172>1 [0-9T:\+\-\.]+ heroku token log-shuttle - - Error L13: 2 messages lost since [0-9T:\+\-\.]+\n`)
+    pat1 := regexp.MustCompile(`135 <172>1 [0-9T:+\-.]+ heroku token log-shuttle - - Error L13: 2 messages lost since [0-9T:+\-.]+\n`)
     if !pat1.Match(th.Actual) {
         t.Fatalf("actual=%s\n", string(th.Actual))
     }
 
     lostHeader, ok := th.Headers["Logplex-Lost-Count"]
     if !ok {
-        t.Fatalf("Header Logplex-Lost-Count not found in response")
+        t.Fatal("Header Logplex-Lost-Count not found in response")
     }
 
     if lostHeader[0] != "2" {
@@ -279,7 +309,14 @@ func TestUserAgentHeader(t *testing.T) {
     config.InputFormat = InputFormatRaw
     config.ID = "0.1-abcde"
 
-    shut := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+    shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
     shut.LoadReader(input)
     shut.Launch()
@@ -289,10 +326,10 @@ func TestUserAgentHeader(t *testing.T) {
 
     uaHeader, ok := th.Headers["User-Agent"]
     if !ok {
-        t.Fatalf("Header User-Agent not found in response")
+        t.Fatal("Header User-Agent not found in response")
     }
 
-    uaPattern := regexp.MustCompile(`^^log-shuttle/[0-9a-z-\.]+ \(go\d+(\.\d+){0,2}((beta|rc)\d)?; \w+; \w+; \w+\)$`)
+    uaPattern := regexp.MustCompile(`^^log-shuttle/[0-9a-z-.]+ \(go\d+(\.\d+){0,2}((beta|rc)\d)?; \w+; \w+; \w+\)$`)
     if !uaPattern.MatchString(uaHeader[0]) {
         t.Fatalf("Header User-Agent doesn't match expected pattern. Actual: %s\n", uaHeader[0])
     }
@@ -307,7 +344,14 @@ func TestRequestId(t *testing.T) {
     config.LogsURL = ts.URL
     config.InputFormat = InputFormatRaw
 
-    shut := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+    shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
     shut.LoadReader(input)
     shut.Launch()
@@ -316,7 +360,7 @@ func TestRequestId(t *testing.T) {
 
     _, ok := th.Headers["X-Request-Id"]
     if !ok {
-        t.Fatalf("Header X-Request-ID not found in response")
+        t.Fatal("Header X-Request-ID not found in response")
     }
 }
 
@@ -333,7 +377,14 @@ func BenchmarkPipeline(b *testing.B) {
     config.LogsURL = ts.URL
     config.InputFormat = InputFormatRaw
 
-    shut := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+    shut := NewShuttle(config, st, mchan)
     input := NewLoopingBuffer(longerTestData)
     shut.LoadReader(input)
     shut.Launch()
@@ -351,8 +402,21 @@ func BenchmarkPipeline(b *testing.B) {
 func ExampleShuttle() {
     config := NewConfig()
     // Modulate the config as needed before creating a new shuttle
-    s := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+    s := NewShuttle(config, st, mchan)
     s.LoadReader(os.Stdin)
     s.Launch() // Start up the batching/delivering go routines
     s.Land()   // Spin down the batching/delivering go routines
+}
+
+
+func TestMain(m *testing.M) {
+    logging.SetLevel(logging.INFO, "")
+	os.Exit(m.Run())
 }

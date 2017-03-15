@@ -35,7 +35,6 @@ type LogLineReader struct {
 
     receiver  *receiver.Receiver
     hostname  string
-    verbose   bool
 }
 
 // NewLogLineReader constructs a new reader with it's own Outbox.
@@ -65,11 +64,8 @@ func NewLogLineReader(input io.ReadCloser, s *Shuttle) *LogLineReader {
             s.config.L2met_Concurrency,
             s.config.L2met_ReceiverDeadline,
             s.store,
-            s.metchan,
-            s.config.Verbose,
-            s.config.Quiet),
+            s.metchan),
         hostname: s.config.Hostname,
-        verbose: s.config.Verbose,
     }
     ll.receiver.Start()
     go ll.expireBatches()
@@ -110,11 +106,11 @@ func (rdr *LogLineReader) ReadLines() error {
             rdr.linesRead.Inc(1)
             rdr.mu.Lock()
 
-            logger.Debugf("Read Line: %s", line)
-            re, reerr := regexp.Compile(`(count|sample|measure)#(\w[^=\s]*)=(\d+(?:\.\d+)?)([a-zA-Z]*)`)
+            logger.Debugf("Read Line: %q", line)
+            re, reerr := regexp.Compile(`(c(?:ount)?|s(?:ample)?|m(?:easure)?)#(\w[^=\s]*)=(\d+(?:\.\d+)?)([a-zA-Z]*)`)
             var matches [][][]byte
             if reerr != nil {
-                logger.Errorf("RegExp Compile Error: %s", reerr)
+                logger.Errorf("RegExp Compile Error: %s", reerr.Error())
             } else {
                 matches = re.FindAllSubmatch(line, -1)
             }

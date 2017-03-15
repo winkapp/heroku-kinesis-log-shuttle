@@ -10,6 +10,8 @@ import (
     "time"
 
     "github.com/winkapp/log-shuttle/l2met/metrics"
+    "github.com/op/go-logging"
+    "os"
 )
 
 func serve(buf *[]string) (*url.URL, *httptest.Server) {
@@ -44,11 +46,9 @@ var metTests = []struct {
 func TestMetchan(t *testing.T) {
     for _, ts := range metTests {
         actual := make([]string, len(ts.out))
-        u, srv := serve(&actual)
+        _, srv := serve(&actual)
 
         mchan := New(
-            false,
-            false,
             "",
             10,
             1024,
@@ -82,4 +82,10 @@ func compareResult(t *testing.T, actual string, possible []string) {
         }
     }
     t.Fatalf("Expected to find %s in %v\n", p.Gauges, possible)
+}
+
+
+func TestMain(m *testing.M) {
+    logging.SetLevel(logging.INFO, "")
+	os.Exit(m.Run())
 }

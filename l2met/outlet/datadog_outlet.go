@@ -31,8 +31,6 @@ type DataDogOutlet struct {
     conn        *http.Client
     numRetries  int
     Mchan       *metchan.Channel
-    verbose     bool
-    quiet       bool
 }
 
 func buildDataDogClient(ttl time.Duration) *http.Client {
@@ -58,8 +56,6 @@ func NewDataDogOutlet(cfg shuttle.Config, r *reader.Reader) *DataDogOutlet {
         numOutlets:  cfg.L2met_Concurrency,
         numRetries:  cfg.L2met_OutletRetries,
         rdr:         r,
-        verbose:     cfg.Verbose,
-        quiet:       cfg.Quiet,
     }
     return l
 }
@@ -105,7 +101,7 @@ func (l *DataDogOutlet) groupByUser() {
                 delete(m, k)
             }
         case payload := <-l.conversions:
-            logger.Debugf("payload: %v", payload)
+            logger.Debugf("payload: %+v", payload)
             usr := payload.Auth
             if _, present := m[usr]; !present {
                 m[usr] = make([]*metrics.DataDog, 1, 300)
@@ -124,9 +120,7 @@ func (l *DataDogOutlet) groupByUser() {
 func (l *DataDogOutlet) outlet() {
     for payloads := range l.outbox {
         if len(payloads) < 1 {
-
             logger.Errorf("at=%q", "empty-metrics-error")
-
             continue
         }
         //Since a playload contains all metrics for
@@ -177,8 +171,6 @@ func (l *DataDogOutlet) postWithRetry(api_key string, body []byte) error {
 
 func (l *DataDogOutlet) post(api_key string, body []byte) error {
     defer l.Mchan.Time("outlet.post", time.Now())
-
-    logger.Debugf("body: %s", string(body))
 
     req, err := metrics.DataDogCreateRequest(metrics.DataDogUrl, api_key, body)
     resp, err := l.conn.Do(req)

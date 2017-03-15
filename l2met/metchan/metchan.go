@@ -92,6 +92,7 @@ func (c *Channel) Measure(name string, v float64) {
         Units:      "ms",
         Source:     c.source,
         Type:       "measurement",
+        Auth:       c.token,
     }
     b := c.getBucket(id)
     b.Append(v)
@@ -108,6 +109,7 @@ func (c *Channel) CountReq(user string) {
         Units:      "requests",
         Source:     usr,
         Type:       "counter",
+        Auth:       c.token,
     }
     b := c.getBucket(id)
     b.Incr(1)
@@ -162,20 +164,20 @@ func (c *Channel) outlet() {
 
         } else {
             logger.Debug("-----------------------------------------------")
-            logger.Debugf("Name:       %v", met.Name)
+            logger.Debugf("Name:       %s", met.Name)
             logger.Debugf("Time:       %v", met.Time)
             if met.IsComplex {
-                logger.Debugf("Count:      %v", *met.Count)
-                logger.Debugf("Sum:        %v", *met.Sum)
-                logger.Debugf("Max:        %v", *met.Max)
-                logger.Debugf("Min:        %v", *met.Min)
+                logger.Debugf("Count:      %d", *met.Count)
+                logger.Debugf("Sum:        %f", *met.Sum)
+                logger.Debugf("Max:        %f", *met.Max)
+                logger.Debugf("Min:        %f", *met.Min)
             } else {
-                logger.Debugf("Val:        %v", *met.Val)
+                logger.Debugf("Val:        %f", *met.Val)
             }
-            logger.Debugf("Source:     %v", met.Source)
-            logger.Debugf("Auth:       %v", logging.Redact(met.Auth))
-            logger.Debugf("Attr.Min:   %v", met.Attr.Min)
-            logger.Debugf("Attr.Units: %v", met.Attr.Units)
+            logger.Debugf("Source:     %s", met.Source)
+            logger.Debugf("Auth:       %s", logging.Redact(met.Auth))
+            logger.Debugf("Attr.Min:   %d", met.Attr.Min)
+            logger.Debugf("Attr.Units: %s", met.Attr.Units)
             logger.Debugf("IsComplex:  %v", met.IsComplex)
             logger.Debug("-----------------------------------------------")
         }

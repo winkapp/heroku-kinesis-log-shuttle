@@ -17,8 +17,8 @@ const (
 
 // Default option values
 const (
-    DefaultMaxLineLength            = 32000
-    DefaultInputFormat              = InputFormatRFC5424
+    DefaultMaxLineLength            = 10000
+    DefaultInputFormat              = InputFormatRaw
     DefaultBackBuff                 = 50
     DefaultTimeout                  = 5 * time.Second
     DefaultWaitDuration             = 250 * time.Millisecond

@@ -1,17 +1,17 @@
 package parser
 
 import (
-    "bufio"
-    "bytes"
     "testing"
 
     "github.com/winkapp/log-shuttle/l2met/bucket"
     "github.com/winkapp/log-shuttle/l2met/metchan"
+    "github.com/op/go-logging"
+    "os"
 )
 
 type testCase struct {
     tname   string
-    in      string
+    in      []byte
     opts    options
     names   []string
     metrics []string
@@ -20,23 +20,16 @@ type testCase struct {
 var parseTest = []testCase{
     {
         "simple",
-        `88 <174>1 2013-07-22T00:06:26-00:00 somehost name test - measure#hello=1 measure#world=1ms\n`,
+        []byte(`88 <174>1 2013-07-22T00:06:26-00:00 somehost name test - measure#hello=1ms count#world=1 sample#foo=3\n`),
         options{"auth": []string{"abc123"}},
-        []string{"hello", "world"},
+        []string{"hello", "world", "foo"},
         []string{},
     },
     {
-        "logplex L10",
-        `162 <174>1 2013-04-17T19:04:46+00:00 d.1234-drain-identifier-567 heroku logplex - - Error L10 (output buffer overflow): 500 messages dropped since 2013-04-17T19:04:46+00:00.`,
+        "simple_short",
+        []byte(`88 <174>1 2013-07-22T00:06:26-00:00 somehost name test - m#hello=1ms c#world=2 s#foo=3\n`),
         options{"auth": []string{"abc123"}},
-        []string{},
-        []string{"name=.logplex.l10 source= vals=[500]"},
-    },
-    {
-        "legacy",
-        `70 <174>1 2013-07-22T00:06:26-00:00 somehost name test - measure.hello=1\n`,
-        options{"auth": []string{"abc123"}},
-        []string{"hello"},
+        []string{"hello", "world", "foo"},
         []string{},
     },
 }
@@ -46,9 +39,8 @@ func TestBuildBuckets(t *testing.T) {
         mchan := new(metchan.Channel)
         mchan.Enabled = true
         mchan.Buffer = make(map[string]*bucket.Bucket)
-        body := bufio.NewReader(bytes.NewBufferString(tc.in))
         buckets := make([]*bucket.Bucket, 0)
-        for b := range BuildBuckets(body, tc.opts, mchan) {
+        for b := range BuildBuckets(tc.in, tc.opts, mchan) {
             buckets = append(buckets, b)
         }
         if len(tc.names) > 0 {
@@ -86,4 +78,9 @@ func testNames(t *testing.T, b []*bucket.Bucket, tc testCase) {
                 tc.tname, tc.names[i], b[i].Id.Name)
         }
     }
+}
+
+func TestMain(m *testing.M) {
+    logging.SetLevel(logging.INFO, "")
+	os.Exit(m.Run())
 }

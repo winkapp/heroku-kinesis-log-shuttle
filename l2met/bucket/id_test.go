@@ -4,6 +4,8 @@ import (
     "bytes"
     "testing"
     "time"
+    "github.com/op/go-logging"
+    "os"
 )
 
 var idTest = []struct {
@@ -61,4 +63,9 @@ func TestDelayFiveSeconds(t *testing.T) {
     if expectedDelay != actualDelay {
         t.Errorf("actual=%d expected=%d\n", actualDelay, expectedDelay)
     }
+}
+
+func TestMain(m *testing.M) {
+    logging.SetLevel(logging.INFO, "")
+	os.Exit(m.Run())
 }

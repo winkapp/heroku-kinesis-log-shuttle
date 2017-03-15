@@ -11,6 +11,8 @@ import (
     "time"
 
     "github.com/rcrowley/go-metrics"
+    "github.com/winkapp/log-shuttle/l2met/store"
+    "github.com/winkapp/log-shuttle/l2met/metchan"
 )
 
 type testEOFHelper struct {
@@ -46,7 +48,15 @@ func TestOutletEOFRetry(t *testing.T) {
     config.LogsURL = ts.URL
     config.SkipVerify = true
 
-    s := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+    mchan.Start()
+    s := NewShuttle(config, st, mchan)
     outlet := NewHTTPOutlet(s)
 
     batch := NewBatch(config.BatchSize)
@@ -77,7 +87,15 @@ func TestOutletEOFRetryMax(t *testing.T) {
     config.LogsURL = ts.URL
     config.SkipVerify = true
     logCapture := new(bytes.Buffer)
-    s := NewShuttle(config)
+    st := store.NewMemStore()
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname)
+
+    s := NewShuttle(config, st, mchan)
     s.ErrLogger = log.New(logCapture, "", 0)
 
     outlet := NewHTTPOutlet(s)
