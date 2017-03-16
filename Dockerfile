@@ -1,5 +1,5 @@
 FROM golang:1.8.0-alpine
-MAINTAINER Jonathan Hosmer <jonathan@wink.com>
+LABEL maintainer "Jonathan Hosmer <jonathan@wink.com>"
 
 RUN set -ex \
         && apk add --no-cache --virtual .build-deps \
@@ -18,4 +18,4 @@ COPY . /go/src/github.com/winkapp/log-shuttle
 RUN go-wrapper download
 RUN go-wrapper install ./cmd/log-shuttle
 
-ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/entrypoint.sh"]
