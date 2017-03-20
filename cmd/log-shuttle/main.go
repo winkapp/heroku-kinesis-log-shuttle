@@ -11,7 +11,6 @@ import (
     "strconv"
     "strings"
 
-    "errors"
     "github.com/winkapp/log-shuttle"
     "github.com/winkapp/log-shuttle/l2met/metchan"
     "github.com/winkapp/log-shuttle/l2met/outlet"
@@ -74,16 +73,12 @@ func (p Password) Redacted() interface{} {
 // parseFlags overrides the properties of the given config using the provided
 // command-line flags.  Any option not overridden by a flag will be untouched.
 func parseFlags(c shuttle.Config) (shuttle.Config, error) {
-    var skipHeaders bool
-    var statsAddr string
     var printVersion bool
 
     flag.BoolVar(&c.Verbose, "verbose", c.Verbose, "Enable verbose debug info.")
     flag.BoolVar(&c.SkipVerify, "skip-verify", c.SkipVerify, "Skip the verification of HTTPS server certificate.")
     flag.BoolVar(&c.UseGzip, "gzip", c.UseGzip, "POST using gzip compression.")
     flag.BoolVar(&c.Drop, "drop", c.Drop, "Drop (default) logs or backup & block stdin.")
-
-    flag.BoolVar(&skipHeaders, "skip-headers", skipHeaders, "Skip the prepending of rfc5424 headers.")
     flag.BoolVar(&logToSyslog, "log-to-syslog", logToSyslog, "Log to syslog instead of stderr.")
     flag.BoolVar(&printVersion, "version", printVersion, "Print log-shuttle version & exit.")
 
@@ -98,25 +93,16 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
     flag.StringVar(&c.Msgid, "msgid", c.Msgid, "The msgid field for the syslog header.")
     flag.StringVar(&c.LogsURL, "logs-url", c.LogsURL, "The receiver of the log data.")
     flag.StringVar(&c.StatsSource, "stats-source", c.StatsSource, "When emitting stats, add source=<stats-source> to the stats.")
-
     flag.StringVar(&inputFormat, "input-format", "raw", "raw (default), rfc3164 (syslog(3)), rfc5424.")
-    flag.StringVar(&statsAddr, "stats-addr", "", "DEPRECATED, WILL BE REMOVED, HAS NO EFFECT.")
-
     flag.DurationVar(&c.StatsInterval, "stats-interval", c.StatsInterval, "How often to emit/reset stats.")
     flag.DurationVar(&c.WaitDuration, "wait", c.WaitDuration, "Duration to wait to flush messages to logs-url.")
     flag.DurationVar(&c.Timeout, "timeout", c.Timeout, "Duration to wait for a response from logs-url.")
-
     flag.IntVar(&c.MaxAttempts, "max-attempts", c.MaxAttempts, "Max number of retries.")
-    var b int
-    flag.IntVar(&b, "num-batchers", b, "[NO EFFECT/REMOVED] The number of batchers to run.")
     flag.IntVar(&c.NumOutlets, "num-outlets", c.NumOutlets, "The number of outlets to run.")
     flag.IntVar(&c.BatchSize, "batch-size", c.BatchSize, "Number of messages to pack into an application/logplex-1 http request.")
-    var f int
-    flag.IntVar(&f, "front-buff", f, "[NO EFFECT/REMOVED] Number of messages to buffer in log-shuttle's input channel.")
     flag.IntVar(&c.BackBuff, "back-buff", c.BackBuff, "Number of batches to buffer before dropping.")
     flag.IntVar(&c.MaxLineLength, "max-line-length", c.MaxLineLength, "Number of bytes that the backend allows per line.")
     flag.IntVar(&c.KinesisShards, "kinesis-shards", c.KinesisShards, "Number of unique partition keys to use per app.")
-
     flag.IntVar(&c.L2met_BufferSize, "buffer", c.L2met_BufferSize, "Max number of items for all internal buffers.")
     flag.IntVar(&c.L2met_Concurrency, "concurrency", c.L2met_Concurrency, "Number of running go routines for outlet or receiver.")
 
@@ -155,35 +141,10 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
         os.Exit(0)
     }
 
-    if f != 0 {
-        log.Warning("Use of -front-buff is no longer supported. The flag has no effect and will be removed in the future.")
-    }
-
-    if b != 0 {
-        log.Warning("Use of -num-batchers is no longer supported. The flag has no effect and will be removed in the future.")
-    }
-
-    if statsAddr != "" {
-        log.Warning("Use of -stats-addr is deprecated and will be dropped in the future.")
-    }
-
     var err error
     c.InputFormat, err = mapInputFormat(inputFormat)
     if err != nil {
         return c, err
-    }
-
-    if skipHeaders {
-        log.Warning("Use of -skip-headers is deprecated, use -input-format=rfc5424 instead")
-        switch c.InputFormat {
-        case shuttle.InputFormatRaw:
-            // Massage InputFormat as that's what is used internally
-            c.InputFormat = shuttle.InputFormatRFC5424
-        case shuttle.InputFormatRFC5424:
-            // NOOP
-        default:
-            return c, errors.New("Can only use -skip-headers with default input format or rfc5424")
-        }
     }
 
     log.Debug("-------------------- Config Settings --------------------")
