@@ -121,8 +121,8 @@ func (rdr *LogLineReader) ReadLines() error {
                     logger.Debugf("Match %d: %s", m, matches[m][0])
                     logger.Debugf("  Metric Type: %s", matches[m][1])
                     logger.Debugf("  Metric Name: %s", matches[m][2])
-                    logger.Debugf("  Metric Value: %s",matches[m][3])
-                    logger.Debugf("  Metric Units: %s",matches[m][4])
+                    logger.Debugf("  Metric Value: %s", matches[m][3])
+                    logger.Debugf("  Metric Units: %s", matches[m][4])
                 }
 
                 var opts map[string][]string = make(map[string][]string, 2)
