@@ -168,7 +168,7 @@ func (llf *LogplexLineFormatter) Read(p []byte) (n int, err error) {
     return
 }
 
-func (llf *LogplexLineFormatter) len() int {
+func (llf *LogplexLineFormatter) length() int {
     return len(llf.line) + len(llf.header)
 }
 
@@ -213,10 +213,12 @@ func NewLogplexErrorFormatter(err errData, config *Config) *LogplexLineFormatter
         code = "L13"
     }
 
-    msg := fmt.Sprintf("<172>%s %s heroku %s log-shuttle %s Error %s: %d messages %s since %s\n",
+    msg := fmt.Sprintf("<172>%s %s %s %s %s %s Error %s: %d messages %s since %s\n",
         config.Version,
         time.Now().UTC().Format(LogplexBatchTimeFormat),
+        config.Hostname,
         config.Appname,
+        config.Procid,
         config.Msgid,
         code,
         err.count,

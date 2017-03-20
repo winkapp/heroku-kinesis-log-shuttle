@@ -163,10 +163,10 @@ func TestIntegration(t *testing.T) {
     pat2 := regexp.MustCompile(`78 <190>1 [0-9T:+\-.]+ shuttle token shuttle - - Test Line 2`)
 
     if !pat1.Match(th.Actual) {
-        t.Fatalf("actual=%s\n", string(th.Actual))
+        t.Fatalf("actual=%q\n", string(th.Actual))
     }
     if !pat2.Match(th.Actual) {
-        t.Fatalf("actual=%s\n", string(th.Actual))
+        t.Fatalf("actual=%q\n", string(th.Actual))
     }
 
     if afterDrops, _ := shut.Drops.ReadAndReset(); afterDrops != 0 {
@@ -200,10 +200,10 @@ func TestInputFormatRFC5424Integration(t *testing.T) {
     pat2 := regexp.MustCompile(`90 <13>1 2013-09-25T01:16:49\.402923\+00:00 host token web\.1 - \[meta sequenceId="2"] message 2`)
 
     if !pat1.Match(th.Actual) {
-        t.Fatalf("actual=%s\n", string(th.Actual))
+        t.Fatalf("actual=%q\n", string(th.Actual))
     }
     if !pat2.Match(th.Actual) {
-        t.Fatalf("actual=%s\n", string(th.Actual))
+        t.Fatalf("actual=%q\n", string(th.Actual))
     }
 }
 
@@ -232,9 +232,9 @@ func TestDrops(t *testing.T) {
     shut.WaitForReadersToFinish()
     shut.Land()
 
-    pat1 := regexp.MustCompile(`138 <172>1 [0-9T:+\-.]+ heroku token log-shuttle - - Error L12: 2 messages dropped since [0-9T:+\-.]+\n`)
+    pat1 := regexp.MustCompile(`135 <172>1 [0-9T:+\-.]+ shuttle token shuttle - - Error L12: 2 messages dropped since [0-9T:+\-.]+\n`)
     if !pat1.Match(th.Actual) {
-        t.Fatalf("actual=%s\n", string(th.Actual))
+        t.Fatalf("actual=%q\n", string(th.Actual))
     }
 
     dropHeader, ok := th.Headers["Logplex-Drop-Count"]
@@ -279,9 +279,9 @@ func TestLost(t *testing.T) {
     shut.WaitForReadersToFinish()
     shut.Land()
 
-    pat1 := regexp.MustCompile(`135 <172>1 [0-9T:+\-.]+ heroku token log-shuttle - - Error L13: 2 messages lost since [0-9T:+\-.]+\n`)
+    pat1 := regexp.MustCompile(`132 <172>1 [0-9T:+\-.]+ shuttle token shuttle - - Error L13: 2 messages lost since [0-9T:+\-.]+\n`)
     if !pat1.Match(th.Actual) {
-        t.Fatalf("actual=%s\n", string(th.Actual))
+        t.Fatalf("actual=%q\n", string(th.Actual))
     }
 
     lostHeader, ok := th.Headers["Logplex-Lost-Count"]
