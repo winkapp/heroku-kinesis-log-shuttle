@@ -1,5 +1,17 @@
-#!/bin/bash
-nc -lk \
+#!/bin/sh -e
+
+PROTO=$(echo "${1:-tcp}" | tr '[:upper:]' '[:lower:]')
+
+if [ "$PROTO" = "udp" ]; then
+    PROTO_FLAG="-u"
+elif [ "$PROTO" = "tcp" ]; then
+    PROTO_FLAG=""
+else
+    echo "Unsupport protocol: $PROTO"
+    exit 1
+fi
+
+nc -lk $PROTO_FLAG \
     -p 514 \
     -e /go/bin/log-shuttle \
         -appname "${APP_NAME:-log-shuttle}" \

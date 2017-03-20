@@ -12,9 +12,8 @@ test:
 
 deployment:
   all:
-    branch: [master, production]
+    branch: [master, l2met, production]
     commands:
       - docker tag quay.io/winkapp/${CIRCLE_PROJECT_REPONAME}:${CIRCLE_SHA1} quay.io/winkapp/${CIRCLE_PROJECT_REPONAME}:${CIRCLE_BRANCH}
       - docker login -e $QUAY_EMAIL -u $QUAY_USER -p $QUAY_PASS quay.io
       - docker push quay.io/winkapp/${CIRCLE_PROJECT_REPONAME}
-

@@ -10,7 +10,7 @@ RUN set -ex \
 RUN mkdir -p /go/src/github.com/winkapp/log-shuttle
 WORKDIR /go/src/github.com/winkapp/log-shuttle
 
-EXPOSE 514
+EXPOSE 514/tcp 514/udp
 
 COPY entrypoint.sh /entrypoint.sh
 
