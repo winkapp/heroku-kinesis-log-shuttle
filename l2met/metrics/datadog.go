@@ -114,7 +114,6 @@ func (d DataDogConverter) Post(api_key string) error {
         }
     }
 
-
     ddReq := &DataDogRequest{metrics}
 
     body, err := json.Marshal(ddReq)

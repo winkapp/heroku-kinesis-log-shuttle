@@ -22,4 +22,5 @@ nc -lk $PROTO_FLAG \
         -logs-url "$KINESIS_URL" \
         -max-line-length 32000 \
         -outlet-token "$OUTLET_API_TOKEN" \
+        -tags "$TAGS" \
         -verbose

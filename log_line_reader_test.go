@@ -5,7 +5,6 @@ import (
     "sync"
     "testing"
     "github.com/winkapp/log-shuttle/l2met/store"
-    "github.com/winkapp/log-shuttle/l2met/metchan"
 )
 
 const (
@@ -64,12 +63,7 @@ func doBasicLogLineReaderBenchmark(b *testing.B, backBuffSize int) {
 
         config := newTestConfig()
         st := store.NewMemStore()
-        mchan := metchan.New(
-            config.L2met_OutletAPIToken,
-            config.L2met_Concurrency,
-            config.L2met_BufferSize,
-            config.Appname,
-            config.Hostname)
+        mchan := newTestMetChan(config)
         s := NewShuttle(config, st, mchan)
         llp := NewInputProducer(TestProducerLines)
         rdr := NewLogLineReader(llp, s)

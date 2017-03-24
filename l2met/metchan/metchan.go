@@ -26,6 +26,7 @@ type Channel struct {
     outbox     chan *bucket.Metric
     source     string
     appName    string
+    tags       string
     numOutlets int
 }
 
@@ -35,7 +36,7 @@ type Channel struct {
 // If a blank URL is given, no metric posting attempt will be made.
 // If verbose is set to true, the metric will be printed to STDOUT
 // regardless of whether the metric is sent upstream.
-func New(token string, ccu int, buffsize int, appName string, hostName string) *Channel {
+func New(token string, ccu int, buffsize int, appName string, hostName string, tags string) *Channel {
     c := new(Channel)
 
     c.Enabled = true
@@ -51,7 +52,9 @@ func New(token string, ccu int, buffsize int, appName string, hostName string) *
 
     c.source = hostName
     c.appName = appName
+    c.tags = tags
 
+    logger.Debugf("MetChan tags:          %s", c.tags)
     logger.Debugf("MetChan token:         %s", logging.Redact(c.token))
     logger.Debugf("MetChan source:        %s", c.source)
     logger.Debugf("MetChan appName:       %s", c.appName)
@@ -93,6 +96,7 @@ func (c *Channel) Measure(name string, v float64) {
         Source:     c.source,
         Type:       "measurement",
         Auth:       c.token,
+        Tags:       c.tags,
     }
     b := c.getBucket(id)
     b.Append(v)
@@ -110,6 +114,7 @@ func (c *Channel) CountReq(user string) {
         Source:     usr,
         Type:       "counter",
         Auth:       c.token,
+        Tags:       c.tags,
     }
     b := c.getBucket(id)
     b.Incr(1)

@@ -53,6 +53,7 @@ const (
     Default_l2met_OutletRetries     = 2
     Default_l2met_OutletTtl         = time.Second*2
     Default_l2met_ReceiverDeadline  = 2
+    Default_l2met_Tags              = ""
     Default_l2met_UseDataDogOutlet  = true
     Default_l2met_UseNewRelicOutlet = false
 )
@@ -115,6 +116,7 @@ type Config struct {
     L2met_OutletRetries                 int
     L2met_OutletTtl                     time.Duration
     L2met_ReceiverDeadline              int64
+    L2met_Tags                          string
     L2met_UseDataDogOutlet              bool
     L2met_UseNewRelicOutlet             bool
 
@@ -168,6 +170,7 @@ func NewConfig() Config {
         L2met_OutletInterval:    time.Duration(Default_l2met_OutletInterval),
         L2met_OutletRetries:     Default_l2met_OutletRetries,
         L2met_OutletTtl:         time.Duration(Default_l2met_OutletTtl),
+        L2met_Tags:              Default_l2met_Tags,
         L2met_ReceiverDeadline:  Default_l2met_ReceiverDeadline,
         L2met_UseDataDogOutlet:  Default_l2met_UseDataDogOutlet,
         L2met_UseNewRelicOutlet: Default_l2met_UseNewRelicOutlet,

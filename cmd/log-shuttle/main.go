@@ -74,6 +74,7 @@ func (p Password) Redacted() interface{} {
 // command-line flags.  Any option not overridden by a flag will be untouched.
 func parseFlags(c shuttle.Config) (shuttle.Config, error) {
     var printVersion bool
+    var inputFormat string
 
     flag.BoolVar(&c.Verbose, "verbose", c.Verbose, "Enable verbose debug info.")
     flag.BoolVar(&c.SkipVerify, "skip-verify", c.SkipVerify, "Skip the verification of HTTPS server certificate.")
@@ -81,8 +82,6 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
     flag.BoolVar(&c.Drop, "drop", c.Drop, "Drop (default) logs or backup & block stdin.")
     flag.BoolVar(&logToSyslog, "log-to-syslog", logToSyslog, "Log to syslog instead of stderr.")
     flag.BoolVar(&printVersion, "version", printVersion, "Print log-shuttle version & exit.")
-
-    var inputFormat string
 
     flag.StringVar(&c.Prival, "prival", c.Prival, "The primary value of the rfc5424 header.")
     flag.StringVar(&c.Version, "syslog-version", c.Version, "The version of syslog.")
@@ -103,19 +102,19 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
     flag.IntVar(&c.BackBuff, "back-buff", c.BackBuff, "Number of batches to buffer before dropping.")
     flag.IntVar(&c.MaxLineLength, "max-line-length", c.MaxLineLength, "Number of bytes that the backend allows per line.")
     flag.IntVar(&c.KinesisShards, "kinesis-shards", c.KinesisShards, "Number of unique partition keys to use per app.")
+
     flag.IntVar(&c.L2met_BufferSize, "buffer", c.L2met_BufferSize, "Max number of items for all internal buffers.")
     flag.IntVar(&c.L2met_Concurrency, "concurrency", c.L2met_Concurrency, "Number of running go routines for outlet or receiver.")
-
     flag.DurationVar(&c.L2met_FlushInterval, "flush-interval", c.L2met_FlushInterval, "Time to wait before sending data to store or outlet. Example:60s 30s 1m")
-    flag.Uint64Var(&c.L2met_MaxPartitions, "partitions", c.L2met_MaxPartitions, "Number of partitions to use for outlets.")
-    flag.StringVar(&c.L2met_OutletAPIToken, "outlet-token", c.L2met_OutletAPIToken, "Outlet API Token.")
-    flag.DurationVar(&c.L2met_OutletInterval, "outlet-interval", c.L2met_OutletInterval, "Time to wait before outlets read buckets from the store. Example:60s 30s 1m")
-    flag.IntVar(&c.L2met_OutletRetries, "outlet-retry", c.L2met_OutletRetries, "Number of attempts to outlet metrics.")
-    flag.DurationVar(&c.L2met_OutletTtl, "outlet-ttl", c.L2met_OutletTtl, "Timeout set on outlet HTTP requests.")
-    flag.Int64Var(&c.L2met_ReceiverDeadline, "recv-deadline", c.L2met_ReceiverDeadline, "Number of time units to pass before dropping incoming logs.")
     flag.BoolVar(&c.L2met_UseDataDogOutlet, "outlet-datadog", c.L2met_UseDataDogOutlet, "Start the DataDog outlet.")
+    flag.DurationVar(&c.L2met_OutletInterval, "outlet-interval", c.L2met_OutletInterval, "Time to wait before outlets read buckets from the store. Example:60s 30s 1m")
     flag.BoolVar(&c.L2met_UseNewRelicOutlet, "outlet-newrelic", c.L2met_UseNewRelicOutlet, "Start the NewRelic outlet.")
-
+    flag.IntVar(&c.L2met_OutletRetries, "outlet-retry", c.L2met_OutletRetries, "Number of attempts to outlet metrics.")
+    flag.StringVar(&c.L2met_OutletAPIToken, "outlet-token", c.L2met_OutletAPIToken, "Outlet API Token.")
+    flag.DurationVar(&c.L2met_OutletTtl, "outlet-ttl", c.L2met_OutletTtl, "Timeout set on outlet HTTP requests.")
+    flag.Uint64Var(&c.L2met_MaxPartitions, "partitions", c.L2met_MaxPartitions, "Number of partitions to use for outlets.")
+    flag.Int64Var(&c.L2met_ReceiverDeadline, "recv-deadline", c.L2met_ReceiverDeadline, "Number of time units to pass before dropping incoming logs.")
+    flag.StringVar(&c.L2met_Tags, "tags", c.L2met_Tags, "Additional tags to add to all metrics (comma-separated: environment:staging,clustertype:kubernetes)")
     flag.Parse()
 
     loggerBackend := logging.NewLogBackend(os.Stdout, "", 0)
@@ -148,42 +147,43 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
     }
 
     log.Debug("-------------------- Config Settings --------------------")
-    log.Debugf("MaxLineLength:           %v", c.MaxLineLength)
-    log.Debugf("Quiet:                   %v", c.Quiet)
-    log.Debugf("Verbose:                 %v", c.Verbose)
-    log.Debugf("SkipVerify:              %v", c.SkipVerify)
-    log.Debugf("Prival:                  %v", c.Prival)
-    log.Debugf("Version:                 %v", c.Version)
-    log.Debugf("Procid:                  %v", c.Procid)
-    log.Debugf("Appname:                 %v", c.Appname)
-    log.Debugf("Hostname:                %v", c.Hostname)
-    log.Debugf("Msgid:                   %v", c.Msgid)
-    log.Debugf("LogsURL:                 %v", Password(c.LogsURL))
-    log.Debugf("StatsSource:             %v", c.StatsSource)
+    log.Debugf("MaxLineLength:           %d", c.MaxLineLength)
+    log.Debugf("Quiet:                   %t", c.Quiet)
+    log.Debugf("Verbose:                 %t", c.Verbose)
+    log.Debugf("SkipVerify:              %t", c.SkipVerify)
+    log.Debugf("Prival:                  %s", c.Prival)
+    log.Debugf("Version:                 %s", c.Version)
+    log.Debugf("Procid:                  %s", c.Procid)
+    log.Debugf("Appname:                 %s", c.Appname)
+    log.Debugf("Hostname:                %s", c.Hostname)
+    log.Debugf("Msgid:                   %s", c.Msgid)
+    log.Debugf("LogsURL:                 %s", Password(c.LogsURL))
+    log.Debugf("StatsSource:             %s", c.StatsSource)
     log.Debugf("StatsInterval:           %v", c.StatsInterval)
-    log.Debugf("MaxAttempts:             %v", c.MaxAttempts)
-    log.Debugf("InputFormat:             %v", c.InputFormat)
-    log.Debugf("NumOutlets:              %v", c.NumOutlets)
+    log.Debugf("MaxAttempts:             %d", c.MaxAttempts)
+    log.Debugf("InputFormat:             %s", inputFormat)
+    log.Debugf("NumOutlets:              %d", c.NumOutlets)
     log.Debugf("WaitDuration:            %v", c.WaitDuration)
-    log.Debugf("BatchSize:               %v", c.BatchSize)
-    log.Debugf("BackBuff:                %v", c.BackBuff)
+    log.Debugf("BatchSize:               %d", c.BatchSize)
+    log.Debugf("BackBuff:                %d", c.BackBuff)
     log.Debugf("Timeout:                 %v", c.Timeout)
-    log.Debugf("ID:                      %v", c.ID)
+    log.Debugf("ID:                      %s", c.ID)
     log.Debugf("FormatterFunc:           %v", c.FormatterFunc)
-    log.Debugf("Drop:                    %v", c.Drop)
-    log.Debugf("UseGzip:                 %v", c.UseGzip)
-    log.Debugf("KinesisShards:           %v", c.KinesisShards)
-    log.Debugf("L2met_BufferSize:        %v", c.L2met_BufferSize)
-    log.Debugf("L2met_Concurrency:       %v", c.L2met_Concurrency)
+    log.Debugf("Drop:                    %t", c.Drop)
+    log.Debugf("UseGzip:                 %t", c.UseGzip)
+    log.Debugf("KinesisShards:           %d", c.KinesisShards)
+    log.Debugf("L2met_BufferSize:        %d", c.L2met_BufferSize)
+    log.Debugf("L2met_Concurrency:       %d", c.L2met_Concurrency)
     log.Debugf("L2met_FlushInterval:     %v", c.L2met_FlushInterval)
-    log.Debugf("L2met_MaxPartitions:     %v", c.L2met_MaxPartitions)
-    log.Debugf("L2met_OutletAPIToken:    %v", Password(c.L2met_OutletAPIToken))
+    log.Debugf("L2met_MaxPartitions:     %d", c.L2met_MaxPartitions)
+    log.Debugf("L2met_OutletAPIToken:    %s", Password(c.L2met_OutletAPIToken))
     log.Debugf("L2met_OutletInterval:    %v", c.L2met_OutletInterval)
-    log.Debugf("L2met_OutletRetries:     %v", c.L2met_OutletRetries)
+    log.Debugf("L2met_OutletRetries:     %d", c.L2met_OutletRetries)
     log.Debugf("L2met_OutletTtl:         %v", c.L2met_OutletTtl)
-    log.Debugf("L2met_ReceiverDeadline:  %v", c.L2met_ReceiverDeadline)
-    log.Debugf("L2met_UseDataDogOutlet:  %v", c.L2met_UseDataDogOutlet)
-    log.Debugf("L2met_UseNewRelicOutlet: %v", c.L2met_UseNewRelicOutlet)
+    log.Debugf("L2met_ReceiverDeadline:  %d", c.L2met_ReceiverDeadline)
+    log.Debugf("L2met_Tags:              %s", c.L2met_Tags)
+    log.Debugf("L2met_UseDataDogOutlet:  %t", c.L2met_UseDataDogOutlet)
+    log.Debugf("L2met_UseNewRelicOutlet: %t", c.L2met_UseNewRelicOutlet)
     log.Debug("---------------------------------------------------------")
 
     return c, nil
@@ -276,7 +276,8 @@ func main() {
         config.L2met_Concurrency,
         config.L2met_BufferSize,
         config.Appname,
-        config.Hostname)
+        config.Hostname,
+        config.L2met_Tags)
     mchan.Start()
 
     st := store.NewMemStore()

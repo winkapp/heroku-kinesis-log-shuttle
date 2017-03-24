@@ -16,25 +16,27 @@ var logger = logging.MustGetLogger("log-shuttle")
 // LogLineReader performs the reading of lines from an io.ReadCloser, encapsulating
 // lines into a LogLine and emitting them on outbox
 type LogLineReader struct {
-    input     io.ReadCloser // The input to read from
-    out       chan<- Batch  // Where to send batches
-    close     chan struct{}
-    batchSize int           // size of new batches
-    timeOut   time.Duration // batch timeout
-    timer     *time.Timer   // timer to actually enforce timeout
-    drops     *Counter
-    drop      bool // Should we drop or block
+    input             io.ReadCloser // The input to read from
+    out               chan<- Batch  // Where to send batches
+    close             chan struct{}
+    batchSize         int           // size of new batches
+    timeOut           time.Duration // batch timeout
+    timer             *time.Timer   // timer to actually enforce timeout
+    drops             *Counter
+    drop              bool // Should we drop or block
 
     linesRead         metrics.Counter
     linesBatchedCount metrics.Counter
     linesDroppedCount metrics.Counter
     batchFillTime     metrics.Timer
 
-    mu sync.Mutex // protects access to below
-    b  Batch
+    mu                sync.Mutex // protects access to below
+    b                 Batch
 
-    receiver  *receiver.Receiver
-    hostname  string
+    receiver          *receiver.Receiver
+    hostname          string
+    tags              string
+    appName           string
 }
 
 // NewLogLineReader constructs a new reader with it's own Outbox.
@@ -66,6 +68,8 @@ func NewLogLineReader(input io.ReadCloser, s *Shuttle) *LogLineReader {
             s.store,
             s.metchan),
         hostname: s.config.Hostname,
+        tags: s.config.L2met_Tags,
+        appName: s.config.Appname,
     }
     ll.receiver.Start()
     go ll.expireBatches()
@@ -124,10 +128,12 @@ func (rdr *LogLineReader) ReadLines() error {
                     logger.Debugf("  Metric Value: %s", matches[m][3])
                     logger.Debugf("  Metric Units: %s", matches[m][4])
                 }
-
-                var opts map[string][]string = make(map[string][]string, 2)
-                opts["tags"] = []string{"environment:staging", "cluster:kubernetes"}
-                opts["source"] = []string{rdr.hostname}
+                opts := map[string][]string{
+                    // TODO: Is it a good idea to prepend the app name here?
+                    "prefix": []string{rdr.appName},
+                    "source": []string{rdr.hostname},
+                    "tags":   []string{rdr.tags},  // "environment:staging","clustertype:kubernetes"
+                }
                 rdr.receiver.Receive(line, opts)
             }
 

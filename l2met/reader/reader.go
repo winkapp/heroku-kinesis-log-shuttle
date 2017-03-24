@@ -21,8 +21,6 @@ type Reader struct {
     Inbox        chan *bucket.Bucket
     Outbox       chan *bucket.Bucket
     Mchan        *metchan.Channel
-    verbose      bool
-    quiet        bool
 }
 
 // Sets the scan interval to 1s.
@@ -32,8 +30,6 @@ func New(cfg shuttle.Config, st store.Store) *Reader {
     rdr.numOutlets = cfg.L2met_Concurrency
     rdr.scanInterval = cfg.L2met_OutletInterval
     rdr.str = st
-    rdr.verbose = cfg.Verbose
-    rdr.quiet = cfg.Quiet
     return rdr
 }
 

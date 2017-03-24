@@ -39,6 +39,17 @@ func newTestConfig() Config {
     return config
 }
 
+func newTestMetChan(config Config) *metchan.Channel {
+    mchan := metchan.New(
+        config.L2met_OutletAPIToken,
+        config.L2met_Concurrency,
+        config.L2met_BufferSize,
+        config.Appname,
+        config.Hostname,
+        config.L2met_Tags)
+    return mchan
+}
+
 type loopingBuffer struct {
     b     []byte
     close chan struct{}
@@ -145,12 +156,7 @@ func TestIntegration(t *testing.T) {
     config.LogsURL = ts.URL
 
     st := store.NewMemStore()
-    mchan := metchan.New(
-        config.L2met_OutletAPIToken,
-        config.L2met_Concurrency,
-        config.L2met_BufferSize,
-        config.Appname,
-        config.Hostname)
+    mchan := newTestMetChan(config)
 
     shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
@@ -183,12 +189,7 @@ func TestInputFormatRFC5424Integration(t *testing.T) {
     config.LogsURL = ts.URL
     config.InputFormat = InputFormatRFC5424
     st := store.NewMemStore()
-    mchan := metchan.New(
-        config.L2met_OutletAPIToken,
-        config.L2met_Concurrency,
-        config.L2met_BufferSize,
-        config.Appname,
-        config.Hostname)
+    mchan := newTestMetChan(config)
     shut := NewShuttle(config, st, mchan)
     input := NewTestInputWithHeaders()
     shut.LoadReader(input)
@@ -217,12 +218,7 @@ func TestDrops(t *testing.T) {
     config.InputFormat = InputFormatRaw
 
     st := store.NewMemStore()
-    mchan := metchan.New(
-        config.L2met_OutletAPIToken,
-        config.L2met_Concurrency,
-        config.L2met_BufferSize,
-        config.Appname,
-        config.Hostname)
+    mchan := newTestMetChan(config)
     shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
     shut.LoadReader(input)
@@ -262,12 +258,7 @@ func TestLost(t *testing.T) {
     config.InputFormat = InputFormatRaw
 
     st := store.NewMemStore()
-    mchan := metchan.New(
-        config.L2met_OutletAPIToken,
-        config.L2met_Concurrency,
-        config.L2met_BufferSize,
-        config.Appname,
-        config.Hostname)
+    mchan := newTestMetChan(config)
     shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
     shut.LoadReader(input)
@@ -310,12 +301,7 @@ func TestUserAgentHeader(t *testing.T) {
     config.ID = "0.1-abcde"
 
     st := store.NewMemStore()
-    mchan := metchan.New(
-        config.L2met_OutletAPIToken,
-        config.L2met_Concurrency,
-        config.L2met_BufferSize,
-        config.Appname,
-        config.Hostname)
+    mchan := newTestMetChan(config)
     shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
     shut.LoadReader(input)
@@ -345,12 +331,7 @@ func TestRequestId(t *testing.T) {
     config.InputFormat = InputFormatRaw
 
     st := store.NewMemStore()
-    mchan := metchan.New(
-        config.L2met_OutletAPIToken,
-        config.L2met_Concurrency,
-        config.L2met_BufferSize,
-        config.Appname,
-        config.Hostname)
+    mchan := newTestMetChan(config)
     shut := NewShuttle(config, st, mchan)
     input := NewTestInput()
     shut.LoadReader(input)
@@ -378,12 +359,7 @@ func BenchmarkPipeline(b *testing.B) {
     config.InputFormat = InputFormatRaw
 
     st := store.NewMemStore()
-    mchan := metchan.New(
-        config.L2met_OutletAPIToken,
-        config.L2met_Concurrency,
-        config.L2met_BufferSize,
-        config.Appname,
-        config.Hostname)
+    mchan := newTestMetChan(config)
     shut := NewShuttle(config, st, mchan)
     input := NewLoopingBuffer(longerTestData)
     shut.LoadReader(input)
@@ -403,12 +379,7 @@ func ExampleShuttle() {
     config := NewConfig()
     // Modulate the config as needed before creating a new shuttle
     st := store.NewMemStore()
-    mchan := metchan.New(
-        config.L2met_OutletAPIToken,
-        config.L2met_Concurrency,
-        config.L2met_BufferSize,
-        config.Appname,
-        config.Hostname)
+    mchan := newTestMetChan(config)
     s := NewShuttle(config, st, mchan)
     s.LoadReader(os.Stdin)
     s.Launch() // Start up the batching/delivering go routines

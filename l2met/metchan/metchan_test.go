@@ -53,7 +53,8 @@ func TestMetchan(t *testing.T) {
             10,
             1024,
             "l2met-test",
-            "test-host")
+            "test-host",
+            "")
 
         mchan.FlushInterval = time.Millisecond * 500
         mchan.Start()
