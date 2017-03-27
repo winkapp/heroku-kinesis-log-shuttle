@@ -271,13 +271,21 @@ func main() {
     //    errLogger.Fatalln(`error="No stdin detected."`)
     //}
 
+    var tags = []string{}
+    if len(config.L2met_Tags) > 0 {
+        tags = append(tags, config.L2met_Tags)
+    }
+    if len(config.Appname) > 0 {
+        tags = append(tags, "app:" + config.Appname)
+    }
+
     mchan := metchan.New(
         config.L2met_OutletAPIToken,
         config.L2met_Concurrency,
         config.L2met_BufferSize,
         config.Appname,
         config.Hostname,
-        config.L2met_Tags)
+        strings.Join(tags, ","))
     mchan.Start()
 
     st := store.NewMemStore()

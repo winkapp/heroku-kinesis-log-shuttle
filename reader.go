@@ -120,20 +120,44 @@ func (rdr *LogLineReader) ReadLines() error {
             }
 
             if len(matches) > 0 {
-                logger.Debugf("Found %v Metric matches in line", len(matches))
+
+                tags_re, tags_reerr := regexp.Compile(`tags=((?:[^:\s]+:[^,\s]+,?)+)`)
+                var tags_matches [][][]byte
+                if tags_reerr != nil {
+                    logger.Errorf("RegExp Compile Error: %s", tags_reerr.Error())
+                } else {
+                    tags_matches = tags_re.FindAllSubmatch(line, -1)
+                }
+
+                var tags_opt = []string{}
+                if len(rdr.tags) > 0 {
+                    tags_opt = append(tags_opt, rdr.tags)
+                }
+                if len(rdr.appName) > 0 {
+                    tags_opt = append(tags_opt, "app:" + rdr.appName)
+                }
+                for mm := range tags_matches  {
+                    tags_opt = append(tags_opt, string(tags_matches[mm][1]))
+                }
+
                 for m := range matches  {
                     logger.Debugf("Match %d: %s", m, matches[m][0])
                     logger.Debugf("  Metric Type: %s", matches[m][1])
                     logger.Debugf("  Metric Name: %s", matches[m][2])
                     logger.Debugf("  Metric Value: %s", matches[m][3])
                     logger.Debugf("  Metric Units: %s", matches[m][4])
+                    for mm := range tags_matches  {
+                        logger.Debugf("  Metric Tags: %s", tags_matches[mm][1])
+                    }
                 }
+
                 opts := map[string][]string{
                     // TODO: Is it a good idea to prepend the app name here?
-                    "prefix": []string{rdr.appName},
+                    //"prefix": []string{rdr.appName},
                     "source": []string{rdr.hostname},
-                    "tags":   []string{rdr.tags},  // "environment:staging","clustertype:kubernetes"
+                    "tags":   tags_opt,
                 }
+                logger.Debugf("opts: %+v", opts)
                 rdr.receiver.Receive(line, opts)
             }
 

@@ -184,18 +184,18 @@ func (r *Receiver) transfer() {
 func (r *Receiver) outlet() {
     for b := range r.Outbox {
         startPut := time.Now()
-        logger.Debugf("Putting bucket in store: %v", b)
-        logger.Debugf("    Vals:        %v", b.Vals)
-        logger.Debugf("    Sum:         %f", b.Sum)
-        logger.Debugf("    Time:        %v", b.Id.Time)
-        logger.Debugf("    Resolution:  %v", b.Id.Resolution)
-        logger.Debugf("    Auth:        %s", logging.Redact(b.Id.Auth))
-        logger.Debugf("    ReadyAt:     %v", b.Id.ReadyAt)
-        logger.Debugf("    Name:        %s", b.Id.Name)
-        logger.Debugf("    Units:       %s", b.Id.Units)
-        logger.Debugf("    Source:      %s", b.Id.Source)
-        logger.Debugf("    Type:        %s", b.Id.Type)
-        logger.Debugf("    Tags:        %s", b.Id.Tags)
+        //logger.Debugf("Putting bucket in store: %v", b)
+        //logger.Debugf("    Vals:        %v", b.Vals)
+        //logger.Debugf("    Sum:         %f", b.Sum)
+        //logger.Debugf("    Time:        %v", b.Id.Time)
+        //logger.Debugf("    Resolution:  %v", b.Id.Resolution)
+        //logger.Debugf("    Auth:        %s", logging.Redact(b.Id.Auth))
+        //logger.Debugf("    ReadyAt:     %v", b.Id.ReadyAt)
+        //logger.Debugf("    Name:        %s", b.Id.Name)
+        //logger.Debugf("    Units:       %s", b.Id.Units)
+        //logger.Debugf("    Source:      %s", b.Id.Source)
+        //logger.Debugf("    Type:        %s", b.Id.Type)
+        //logger.Debugf("    Tags:        %s", b.Id.Tags)
         if err := r.Store.Put(b); err != nil {
             logger.Errorf("error=%s", err)
         }
@@ -275,7 +275,7 @@ func (r *Receiver) Report() {
         }
 
         pre := "receiver.buffer."
-        r.Mchan.Measure(pre+"inbox", float64(len(r.Inbox)))
-        r.Mchan.Measure(pre+"outbox", float64(len(r.Outbox)))
+        r.Mchan.Measure(pre + "inbox", float64(len(r.Inbox)))
+        r.Mchan.Measure(pre + "outbox", float64(len(r.Outbox)))
     }
 }

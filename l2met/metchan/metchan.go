@@ -82,16 +82,24 @@ func (c *Channel) Time(name string, t time.Time) {
 }
 
 func (c *Channel) Measure(name string, v float64) {
-    if v > 0 {
-        logger.Debugf("source=%s measure#%s=%f", c.source, name, v)
-    }
-
     if !c.Enabled {
         return
     }
+    //if !strings.HasPrefix(name, "datadog-outlet") &&
+    //    !strings.HasPrefix(name, "reader.scan") &&
+    //    !strings.HasPrefix(name, "receiver.accept") &&
+    //    !strings.HasPrefix(name, "receiver.buffer.inbox") &&
+    //    !strings.HasPrefix(name, "receiver.buffer.outbox") &&
+    //    !strings.HasPrefix(name, "reader.get") &&
+    //    !strings.HasPrefix(name, "receiver.add-bucket") &&
+    //    !strings.HasPrefix(name, "receiver.outlet") {
+    //    if v > 0 {
+    //       logger.Debugf("measure#%s=%f", name, v)
+    //    }
+    //}
     id := &bucket.Id{
         Resolution: c.FlushInterval,
-        Name:       c.appName + "." + name,
+        Name:       name,
         Units:      "ms",
         Source:     c.source,
         Type:       "measurement",
@@ -109,7 +117,7 @@ func (c *Channel) CountReq(user string) {
     usr := strings.Replace(user, "@", "_at_", -1)
     id := &bucket.Id{
         Resolution: c.FlushInterval,
-        Name:       c.appName + "." + "receiver.requests",
+        Name:       "receiver.requests",
         Units:      "requests",
         Source:     usr,
         Type:       "counter",
@@ -164,28 +172,27 @@ func (c *Channel) flush() {
 
 func (c *Channel) outlet() {
     for met := range c.outbox {
-        var ignore = strings.Split(met.Name, ".")[1]
-        if ignore == "datadog-outlet" || ignore == "reader" || ignore == "receiver" {
-
-        } else {
-            logger.Debug("-----------------------------------------------")
-            logger.Debugf("Name:       %s", met.Name)
-            logger.Debugf("Time:       %v", met.Time)
-            if met.IsComplex {
-                logger.Debugf("Count:      %d", *met.Count)
-                logger.Debugf("Sum:        %f", *met.Sum)
-                logger.Debugf("Max:        %f", *met.Max)
-                logger.Debugf("Min:        %f", *met.Min)
-            } else {
-                logger.Debugf("Val:        %f", *met.Val)
-            }
-            logger.Debugf("Source:     %s", met.Source)
-            logger.Debugf("Auth:       %s", logging.Redact(met.Auth))
-            logger.Debugf("Attr.Min:   %d", met.Attr.Min)
-            logger.Debugf("Attr.Units: %s", met.Attr.Units)
-            logger.Debugf("IsComplex:  %v", met.IsComplex)
-            logger.Debug("-----------------------------------------------")
-        }
+        //var ignore = strings.Split(met.Name, ".")[1]
+        //if ignore == "datadog-outlet" || ignore == "reader" || ignore == "receiver" {
+        //
+        //} else {
+        //    logger.Debug("-----------------------------------------------")
+        //    logger.Debugf("Name:       %s", met.Name)
+        //    logger.Debugf("Time:       %v", met.Time)
+        //    if met.IsComplex {
+        //        logger.Debugf("Count:      %d", *met.Count)
+        //        logger.Debugf("Sum:        %f", *met.Sum)
+        //        logger.Debugf("Max:        %f", *met.Max)
+        //        logger.Debugf("Min:        %f", *met.Min)
+        //    } else {
+        //        logger.Debugf("Val:        %f", *met.Val)
+        //    }
+        //    logger.Debugf("Source:     %s", met.Source)
+        //    logger.Debugf("Auth:       %s", logging.Redact(met.Auth))
+        //    logger.Debugf("Attr.Min:   %d", met.Attr.Min)
+        //    logger.Debugf("Attr.Units: %s", met.Attr.Units)
+        //    logger.Debug("-----------------------------------------------")
+        //}
         if err := c.post(met); err != nil {
             logger.Errorf("at=metchan-post error=%s", err)
         }
@@ -194,7 +201,7 @@ func (c *Channel) outlet() {
 
 func (c *Channel) post(m *bucket.Metric) error {
     // FIXME: hardcoded to push to datadog, should be configurable?
-    dd := metrics.DataDogConverter{Src: m}
+    dd := metrics.DataDogConverter{Src: m, Tags: strings.Split(c.tags, ",")}
     return dd.Post(c.token)
 }
 

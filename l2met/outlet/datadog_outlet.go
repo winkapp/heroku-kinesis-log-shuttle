@@ -84,7 +84,7 @@ func (l *DataDogOutlet) convert() {
             }
         }
         delay := b.Id.Delay(time.Now())
-        l.Mchan.Measure("outlet.delay", float64(delay))
+        l.Mchan.Measure("datadog-outlet.delay", float64(delay))
     }
 }
 
@@ -128,16 +128,25 @@ func (l *DataDogOutlet) outlet() {
         //from any one of the payloads.
         api_key := payloads[0].Auth
 
-        for m := range payloads {
-            logger.Debugf("---------------------- %v ----------------------", m)
-            logger.Debugf("m.Metric:  %s", payloads[m].Metric)
-            logger.Debugf("m.Host:    %s", payloads[m].Host)
-            logger.Debugf("m.Tags:    %v", payloads[m].Tags)
-            logger.Debugf("m.Type:    %s", payloads[m].Type)
-            logger.Debugf("m.Auth:    %s", payloads[m].Auth)
-            logger.Debugf("m.Points:  %v", payloads[m].Points)
-            logger.Debug("------------------------------------------------")
-        }
+        //for m := range payloads {
+        //    var debug_log = false
+        //    for pm := range payloads[m].Points {
+        //        if payloads[m].Points[pm][1] > 0 {
+        //            debug_log = true
+        //            break
+        //        }
+        //    }
+        //    if debug_log {
+        //        logger.Debug("----------------- Post Metric -----------------")
+        //        logger.Debugf("Metric:  %s", payloads[m].Metric)
+        //        logger.Debugf("Points:  %v", payloads[m].Points)
+        //        logger.Debugf("Tags:    %v", payloads[m].Tags)
+        //        //logger.Debugf("Host:    %s", payloads[m].Host)
+        //        //logger.Debugf("Type:    %s", payloads[m].Type)
+        //        //logger.Debugf("Auth:    %s", logging.Redact(payloads[m].Auth))
+        //        logger.Debug("------------------------------------------------")
+        //    }
+        //}
 
         ddReq := &metrics.DataDogRequest{Series: payloads}
         j, err := json.Marshal(ddReq)
@@ -147,7 +156,7 @@ func (l *DataDogOutlet) outlet() {
         }
 
         if err := l.postWithRetry(api_key, j); err != nil {
-            l.Mchan.Measure("outlet.drop", 1)
+            l.Mchan.Measure("datadog-outlet.drop", 1)
         }
     }
 }
@@ -170,7 +179,7 @@ func (l *DataDogOutlet) postWithRetry(api_key string, body []byte) error {
 }
 
 func (l *DataDogOutlet) post(api_key string, body []byte) error {
-    defer l.Mchan.Time("outlet.post", time.Now())
+    defer l.Mchan.Time("datadog-outlet.post", time.Now())
 
     req, err := metrics.DataDogCreateRequest(metrics.DataDogUrl, api_key, body)
     resp, err := l.conn.Do(req)
@@ -186,8 +195,8 @@ func (l *DataDogOutlet) post(api_key string, body []byte) error {
 func (l *DataDogOutlet) Report() {
     for range time.Tick(time.Second) {
         pre := "datadog-outlet."
-        l.Mchan.Measure(pre+"inbox", float64(len(l.inbox)))
-        l.Mchan.Measure(pre+"conversion", float64(len(l.conversions)))
-        l.Mchan.Measure(pre+"outbox", float64(len(l.outbox)))
+        l.Mchan.Measure(pre + "inbox", float64(len(l.inbox)))
+        l.Mchan.Measure(pre + "conversion", float64(len(l.conversions)))
+        l.Mchan.Measure(pre + "outbox", float64(len(l.outbox)))
     }
 }

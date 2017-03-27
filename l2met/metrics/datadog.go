@@ -11,7 +11,6 @@ import (
     "github.com/winkapp/log-shuttle/l2met/bucket"
     "github.com/op/go-logging"
     //"strings"
-    "strings"
 )
 
 var logger = logging.MustGetLogger("log-shuttle")
@@ -98,21 +97,35 @@ func (d DataDogConverter) Post(api_key string) error {
         return errors.New("empty-metrics-error")
     }
 
-    for m := range metrics {
-        var ignore = strings.Split(metrics[m].Metric, ".")[1]
-        if ignore == "datadog-outlet" || ignore == "reader" || ignore == "receiver" {
-
-        } else {
-            logger.Debug("-----------------------------------------------")
-            logger.Debugf("m.Metric:  %v", metrics[m].Metric)
-            logger.Debugf("m.Host:    %s", metrics[m].Host)
-            logger.Debugf("m.Tags:    %s", metrics[m].Tags)
-            logger.Debugf("m.Type:    %s", metrics[m].Type)
-            logger.Debugf("m.Auth:    %s", logging.Redact(metrics[m].Auth))
-            logger.Debugf("m.Points:  %v", metrics[m].Points)
-            logger.Debug("-----------------------------------------------")
-        }
-    }
+    //for m := range metrics {
+    //    var name = metrics[m].Metric
+    //    if !strings.HasPrefix(name, "datadog-outlet") &&
+    //        !strings.HasPrefix(name, "reader.scan") &&
+    //        !strings.HasPrefix(name, "receiver.accept")  &&
+    //        !strings.HasPrefix(name, "receiver.buffer.inbox") &&
+    //        !strings.HasPrefix(name, "receiver.buffer.outbox") &&
+    //        !strings.HasPrefix(name, "reader.get") &&
+    //        !strings.HasPrefix(name, "receiver.add-bucket") &&
+    //        !strings.HasPrefix(name, "receiver.outlet") {
+    //        var debug_log = false
+    //        for pm := range metrics[m].Points {
+    //            if metrics[m].Points[pm][1] > 0 {
+    //                debug_log = true
+    //                break
+    //            }
+    //        }
+    //        if debug_log {
+    //            logger.Debug("----------------- Post Metric -----------------")
+    //            logger.Debugf("Metric:  %v", metrics[m].Metric)
+    //            logger.Debugf("Points:  %v", metrics[m].Points)
+    //            logger.Debugf("Tags:    %s", metrics[m].Tags)
+    //            //logger.Debugf("Host:    %s", metrics[m].Host)
+    //            //logger.Debugf("Type:    %s", metrics[m].Type)
+    //            //logger.Debugf("Auth:    %s", logging.Redact(metrics[m].Auth))
+    //            logger.Debug("-----------------------------------------------")
+    //        }
+    //    }
+    //}
 
     ddReq := &DataDogRequest{metrics}
 
