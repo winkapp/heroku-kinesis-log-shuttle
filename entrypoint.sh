@@ -11,7 +11,7 @@ else
     exit 1
 fi
 
-nc -lk $PROTO_FLAG \
+nc -vlk $PROTO_FLAG \
     -p 514 \
     -e /go/bin/log-shuttle \
         -appname "${APP_NAME:-log-shuttle}" \

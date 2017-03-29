@@ -16,6 +16,7 @@ import (
     "github.com/winkapp/log-shuttle/l2met/outlet"
     "github.com/winkapp/log-shuttle/l2met/reader"
     "github.com/winkapp/log-shuttle/l2met/store"
+    "net"
 )
 
 var detectKinesis = regexp.MustCompile(`\Akinesis.[[:alpha:]]{2}-[[:alpha:]]{2,}-[[:digit:]]\.amazonaws\.com\z`)
@@ -38,6 +39,15 @@ func mapInputFormat(i string) (int, error) {
         return shuttle.InputFormatRFC5424, nil
     }
     return 0, fmt.Errorf("Unknown input format: %s", i)
+}
+
+func mapProtocol(p string) (shuttle.Protocol) {
+    switch strings.ToLower(p) {
+    case "udp":
+        return shuttle.UDP
+    default:
+        return shuttle.TCP
+    }
 }
 
 // determineLogsURL from the various options favoring each one in turn
@@ -75,6 +85,7 @@ func (p Password) Redacted() interface{} {
 func parseFlags(c shuttle.Config) (shuttle.Config, error) {
     var printVersion bool
     var inputFormat string
+    var listenProtocol string
 
     flag.BoolVar(&c.Verbose, "verbose", c.Verbose, "Enable verbose debug info.")
     flag.BoolVar(&c.SkipVerify, "skip-verify", c.SkipVerify, "Skip the verification of HTTPS server certificate.")
@@ -103,6 +114,10 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
     flag.IntVar(&c.MaxLineLength, "max-line-length", c.MaxLineLength, "Number of bytes that the backend allows per line.")
     flag.IntVar(&c.KinesisShards, "kinesis-shards", c.KinesisShards, "Number of unique partition keys to use per app.")
 
+    flag.BoolVar(&c.Server, "server", c.Server, "Run a socker server instead of reading from stdin (Default: false)")
+    flag.StringVar(&listenProtocol, "protocol", "tcp", "Listener protocol (tcp/udp - Default: tcp)")
+    flag.IntVar(&c.Port, "port", c.Port, "Listener Port (Default: 514)")
+
     flag.IntVar(&c.L2met_BufferSize, "buffer", c.L2met_BufferSize, "Max number of items for all internal buffers.")
     flag.IntVar(&c.L2met_Concurrency, "concurrency", c.L2met_Concurrency, "Number of running go routines for outlet or receiver.")
     flag.DurationVar(&c.L2met_FlushInterval, "flush-interval", c.L2met_FlushInterval, "Time to wait before sending data to store or outlet. Example:60s 30s 1m")
@@ -116,6 +131,11 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
     flag.Int64Var(&c.L2met_ReceiverDeadline, "recv-deadline", c.L2met_ReceiverDeadline, "Number of time units to pass before dropping incoming logs.")
     flag.StringVar(&c.L2met_Tags, "tags", c.L2met_Tags, "Additional tags to add to all metrics (comma-separated: environment:staging,clustertype:kubernetes)")
     flag.Parse()
+
+    if printVersion {
+        log.Info(version)
+        os.Exit(0)
+    }
 
     loggerBackend := logging.NewLogBackend(os.Stdout, "", 0)
     backendFormatter := logging.NewBackendFormatter(loggerBackend, format)
@@ -135,15 +155,14 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
 
     logging.SetBackend(backendLevel, errBackendLevel)
 
-    if printVersion {
-        log.Info(version)
-        os.Exit(0)
-    }
-
     var err error
     c.InputFormat, err = mapInputFormat(inputFormat)
     if err != nil {
         return c, err
+    }
+
+    if c.Server {
+        c.Protocol = mapProtocol(listenProtocol)
     }
 
     log.Debug("-------------------- Config Settings --------------------")
@@ -172,6 +191,9 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
     log.Debugf("Drop:                    %t", c.Drop)
     log.Debugf("UseGzip:                 %t", c.UseGzip)
     log.Debugf("KinesisShards:           %d", c.KinesisShards)
+    log.Debugf("KinesisShards:           %t", c.Server)
+    log.Debugf("Protocol:                %s", listenProtocol)
+    log.Debugf("Port:                    %d", c.Port)
     log.Debugf("L2met_BufferSize:        %d", c.L2met_BufferSize)
     log.Debugf("L2met_Concurrency:       %d", c.L2met_Concurrency)
     log.Debugf("L2met_FlushInterval:     %v", c.L2met_FlushInterval)
@@ -309,7 +331,38 @@ func main() {
         //s.ErrLogger = errLogger
     }
 
-    s.LoadReader(os.Stdin)
+    if config.Server {
+        if config.Protocol == shuttle.UDP {
+            // UDP socket server
+            addr := net.UDPAddr{
+                Port: config.Port,
+                IP: net.ParseIP("127.0.0.1"),
+            }
+            conn, err := net.ListenUDP("udp", &addr)
+            if err != nil {
+                log.Panicf("UDP Listen Error: %v", err)
+            }
+
+            s.LoadReader(conn)
+        } else {
+            // TCP socket server
+            // listen on all interfaces
+            server, err := net.Listen("tcp", ":" + strconv.Itoa(config.Port))
+            if err != nil {
+                log.Panicf("TCP Listen Error: %v", err)
+            }
+
+            // accept connection on port
+            conn, err := server.Accept()
+            if err != nil {
+                log.Panicf("TCP Accept Error: %v", err)
+            }
+            s.TCPServer = server
+            s.LoadReader(conn)
+        }
+    } else {
+        s.LoadReader(os.Stdin)
+    }
 
     rdr := reader.New(config, st)
     rdr.Mchan = mchan

@@ -15,6 +15,13 @@ const (
     InputFormatRFC5424
 )
 
+const (
+    TCP = iota
+    UDP
+)
+
+type Protocol int
+
 // Default option values
 const (
     DefaultMaxLineLength            = 10000
@@ -41,6 +48,9 @@ const (
     DefaultDrop                     = true
     DefaultUseGzip                  = false
     DefaultKinesisShards            = 1
+    DefaultServer                   = false
+    DefaultProtocol                 = TCP
+    DefaultPort                     = 514
 
     // l2met
     Default_l2met_BufferSize        = 1024
@@ -105,6 +115,9 @@ type Config struct {
     syslogFrameHeaderFormat             string
     ID                                  string
     FormatterFunc                       NewHTTPFormatterFunc
+    Server                              bool
+    Protocol                            Protocol
+    Port                                int
 
     // l2Met
     L2met_BufferSize                    int
@@ -160,6 +173,9 @@ func NewConfig() Config {
         Drop:                    DefaultDrop,
         UseGzip:                 DefaultUseGzip,
         KinesisShards:           DefaultKinesisShards,
+        Server:                  DefaultServer,
+        Protocol:                DefaultProtocol,
+        Port:                    DefaultPort,
 
         // l2met
         L2met_BufferSize:        Default_l2met_BufferSize,

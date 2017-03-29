@@ -9,6 +9,8 @@ import (
     metrics "github.com/rcrowley/go-metrics"
     "github.com/winkapp/log-shuttle/l2met/store"
     "github.com/winkapp/log-shuttle/l2met/metchan"
+    "strings"
+    "net"
 )
 
 // Default logger to /dev/null
@@ -30,6 +32,7 @@ type Shuttle struct {
     ErrLogger        *log.Logger
     store            *store.MemStore
     metchan          *metchan.Channel
+    TCPServer        net.Listener
 }
 
 // NewShuttle returns a properly constructed Shuttle with a given config
@@ -61,7 +64,48 @@ func (s *Shuttle) Launch() {
     for _, rdr := range s.readers {
         s.rWaiter.Add(1)
         go func(rdr *LogLineReader) {
-            rdr.ReadLines()
+            for {
+                err := rdr.ReadLines()
+                if err != nil {
+                    logger.Warningf("ReadLines Error: %v", err)
+                    if s.config.Server {
+                        if s.config.Protocol == TCP {
+                            /*
+                            2017-03-29 17:02:54 - DEBUG   - reader.go:331        -  TypeOf err: *net.OpError
+                            2017-03-29 17:02:54 - ERROR   - reader.go:335        -  Read Error: read tcp 127.0.0.1:5140->127.0.0.1:60263: read: connection reset by peer
+
+                            or
+
+                            2017-03-29 17:02:37 - DEBUG   - reader.go:331        -  TypeOf err: *errors.errorString
+                            2017-03-29 17:02:37 - ERROR   - reader.go:335        -  Read Error: EOF
+                             */
+                            if err == io.EOF || strings.Contains(err.Error(), "connection reset by peer") {
+
+                                err = rdr.input.Close()
+                                if err != nil {
+                                    logger.Debugf("Reader Input Close Error: %v", err)
+                                }
+
+                                // accept connections
+                                conn, err := s.TCPServer.Accept()
+                                if err != nil {
+                                    logger.Panicf("TCP Accept Error: %v", err)
+                                }
+
+                                rdr.input = conn
+                            } else {
+                                break
+                            }
+                        } else {
+                            close(rdr.close)
+                            break
+                        }
+                    } else {
+                        close(rdr.close)
+                        break
+                    }
+                }
+            }
             s.rWaiter.Done()
         }(rdr)
     }

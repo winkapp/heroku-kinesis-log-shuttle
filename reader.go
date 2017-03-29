@@ -37,6 +37,9 @@ type LogLineReader struct {
     hostname          string
     tags              string
     appName           string
+    listenProtocol    Protocol
+    listenPort        int
+    maxLineLength     int
 }
 
 // NewLogLineReader constructs a new reader with it's own Outbox.
@@ -70,6 +73,9 @@ func NewLogLineReader(input io.ReadCloser, s *Shuttle) *LogLineReader {
         hostname: s.config.Hostname,
         tags: s.config.L2met_Tags,
         appName: s.config.Appname,
+        listenProtocol: s.config.Protocol,
+        listenPort: s.config.Port,
+        maxLineLength: s.config.MaxLineLength,
     }
     ll.receiver.Start()
     go ll.expireBatches()
@@ -93,6 +99,7 @@ func (rdr *LogLineReader) expireBatches() {
 
 //Close the reader for input
 func (rdr *LogLineReader) Close() error {
+    //close(rdr.close)
     return rdr.input.Close()
 }
 
@@ -103,6 +110,7 @@ func (rdr *LogLineReader) ReadLines() error {
 
     rdrIo := bufio.NewReader(rdr.input)
     for {
+
         line, err := rdrIo.ReadBytes('\n')
 
         if len(line) > 0 {
@@ -175,7 +183,6 @@ func (rdr *LogLineReader) ReadLines() error {
             rdr.mu.Lock()
             rdr.deliverOrDropCurrent(time.Since(now))
             rdr.mu.Unlock()
-            close(rdr.close)
             return err
         }
     }
