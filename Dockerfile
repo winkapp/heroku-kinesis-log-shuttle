@@ -6,16 +6,13 @@ RUN set -ex \
             git \
         && apk del .build-deps
 
-
 RUN mkdir -p /go/src/github.com/winkapp/log-shuttle
 WORKDIR /go/src/github.com/winkapp/log-shuttle
 
 EXPOSE 514/tcp 514/udp
 
-COPY entrypoint.sh /entrypoint.sh
-
 COPY . /go/src/github.com/winkapp/log-shuttle
 RUN go-wrapper download
 RUN go-wrapper install ./cmd/log-shuttle
 
-CMD ["/entrypoint.sh"]
+ENTRYPOINT ["/go/bin/log-shuttle"]
