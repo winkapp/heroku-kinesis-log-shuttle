@@ -118,7 +118,6 @@ func (rdr *LogLineReader) ReadLines() error {
             rdr.linesRead.Inc(1)
             rdr.mu.Lock()
 
-            logger.Debugf("Read Line: %q", line)
             re, reerr := regexp.Compile(`(c(?:ount)?|s(?:ample)?|m(?:easure)?)#(\w[^=\s]*)=(\d+(?:\.\d+)?)([a-zA-Z]*)`)
             var matches [][][]byte
             if reerr != nil {
