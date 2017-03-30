@@ -79,7 +79,6 @@ func NewReceiver(buffsize int, flushInt time.Duration, ccu int, rcvrd int64, s s
 }
 
 func (r *Receiver) Receive(b []byte, opts map[string][]string) {
-    logger.Debugf("Received: body: %q - opts: %+v", string(b), opts)
     r.inFlight.Add(1)
     r.Inbox <- &LogRequest{b, opts}
 }

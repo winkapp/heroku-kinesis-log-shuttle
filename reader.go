@@ -164,7 +164,6 @@ func (rdr *LogLineReader) ReadLines() error {
                     "source": []string{rdr.hostname},
                     "tags":   tags_opt,
                 }
-                logger.Debugf("opts: %+v", opts)
                 rdr.receiver.Receive(line, opts)
             }
 
