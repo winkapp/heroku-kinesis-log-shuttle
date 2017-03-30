@@ -141,7 +141,7 @@ func (r *Receiver) accept() {
                 r.inFlight.Add(1)
                 r.addRegister(b)
             } else {
-                r.Mchan.Measure("receiver.drop", 1)
+                r.Mchan.Count("receiver.drop", 1)
             }
         }
         r.Mchan.Time("receiver.accept", startParse)
@@ -156,10 +156,10 @@ func (r *Receiver) addRegister(b *bucket.Bucket) {
     k := *b.Id
     _, present := r.Register.m[k]
     if !present {
-        r.Mchan.Measure("receiver.add-bucket", 1)
+        r.Mchan.Count("receiver.add-bucket", 1)
         r.Register.m[k] = b
     } else {
-        r.Mchan.Measure("receiver.merge-bucket", 1)
+        r.Mchan.Count("receiver.merge-bucket", 1)
         r.Register.m[k].Merge(b)
     }
 }
@@ -275,7 +275,7 @@ func (r *Receiver) Report() {
         }
 
         pre := "receiver.buffer."
-        r.Mchan.Measure(pre + "inbox", float64(len(r.Inbox)))
-        r.Mchan.Measure(pre + "outbox", float64(len(r.Outbox)))
+        r.Mchan.Count(pre + "inbox", float64(len(r.Inbox)))
+        r.Mchan.Count(pre + "outbox", float64(len(r.Outbox)))
     }
 }

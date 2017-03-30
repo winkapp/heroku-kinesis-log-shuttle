@@ -101,7 +101,6 @@ func (l *DataDogOutlet) groupByUser() {
                 delete(m, k)
             }
         case payload := <-l.conversions:
-            logger.Debugf("payload: %+v", payload)
             usr := payload.Auth
             if _, present := m[usr]; !present {
                 m[usr] = make([]*metrics.DataDog, 1, 300)
@@ -156,7 +155,7 @@ func (l *DataDogOutlet) outlet() {
         }
 
         if err := l.postWithRetry(api_key, j); err != nil {
-            l.Mchan.Measure("datadog-outlet.drop", 1)
+            l.Mchan.Count("datadog-outlet.drop", 1)
         }
     }
 }
@@ -164,14 +163,13 @@ func (l *DataDogOutlet) outlet() {
 func (l *DataDogOutlet) postWithRetry(api_key string, body []byte) error {
     for i := 0; i <= l.numRetries; i++ {
         if err := l.post(api_key, body); err != nil {
-
-            logger.Errorf("measure.datadog.error key=%s msg=%s attempt=%d", api_key, err, i)
-
+            logger.Errorf("datadog-outlet.error key=%s msg=%s attempt=%d", api_key, err, i)
             if i == l.numRetries {
                 return err
             }
             continue
         }
+        logger.Debugf("Metric successfully sent to DataDog: %q", body)
         return nil
     }
     //Should not be possible.
@@ -195,8 +193,8 @@ func (l *DataDogOutlet) post(api_key string, body []byte) error {
 func (l *DataDogOutlet) Report() {
     for range time.Tick(time.Second) {
         pre := "datadog-outlet."
-        l.Mchan.Measure(pre + "inbox", float64(len(l.inbox)))
-        l.Mchan.Measure(pre + "conversion", float64(len(l.conversions)))
-        l.Mchan.Measure(pre + "outbox", float64(len(l.outbox)))
+        l.Mchan.Count(pre + "inbox", float64(len(l.inbox)))
+        l.Mchan.Count(pre + "conversion", float64(len(l.conversions)))
+        l.Mchan.Count(pre + "outbox", float64(len(l.outbox)))
     }
 }

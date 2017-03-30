@@ -110,6 +110,23 @@ func (c *Channel) Measure(name string, v float64) {
     b.Append(v)
 }
 
+func (c *Channel) Count(name string, v float64) {
+    if !c.Enabled {
+        return
+    }
+    id := &bucket.Id{
+        Resolution: c.FlushInterval,
+        Name:       name,
+        Units:      "requests",
+        Source:     c.source,
+        Type:       "counter",
+        Auth:       c.token,
+        Tags:       c.tags,
+    }
+    b := c.getBucket(id)
+    b.Incr(v)
+}
+
 func (c *Channel) CountReq(user string) {
     if !c.Enabled {
         return
