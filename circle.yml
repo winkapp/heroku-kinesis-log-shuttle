@@ -3,7 +3,7 @@ machine:
     - docker
 
 dependencies:
-  pre:
+  override:
     - docker build --rm=false -t quay.io/winkapp/${CIRCLE_PROJECT_REPONAME}:${CIRCLE_SHA1} .
 
 test:
