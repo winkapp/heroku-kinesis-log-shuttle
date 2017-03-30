@@ -169,7 +169,6 @@ func (l *DataDogOutlet) postWithRetry(api_key string, body []byte) error {
             }
             continue
         }
-        logger.Debugf("Metric successfully sent to DataDog: %q", body)
         return nil
     }
     //Should not be possible.
