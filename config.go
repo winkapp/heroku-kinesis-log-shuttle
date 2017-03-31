@@ -29,7 +29,7 @@ const (
     DefaultBackBuff                 = 50
     DefaultTimeout                  = 5 * time.Second
     DefaultWaitDuration             = 250 * time.Millisecond
-    DefaultMaxAttempts              = 3
+    DefaultMaxAttempts              = 5
     DefaultStatsInterval            = 0 * time.Second
     DefaultStatsSource              = ""
     DefaultQuiet                    = false
@@ -60,7 +60,7 @@ const (
     Default_l2met_MaxPartitions     = uint64(1)
     Default_l2met_OutletAPIToken    = ""
     Default_l2met_OutletInterval    = time.Second
-    Default_l2met_OutletRetries     = 2
+    Default_l2met_OutletRetries     = 5
     Default_l2met_OutletTtl         = time.Second*2
     Default_l2met_ReceiverDeadline  = 2
     Default_l2met_Tags              = ""

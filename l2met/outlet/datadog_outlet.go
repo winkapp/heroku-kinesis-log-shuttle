@@ -141,7 +141,7 @@ func (l *DataDogOutlet) outlet() {
         //        logger.Debugf("Points:  %v", payloads[m].Points)
         //        logger.Debugf("Tags:    %v", payloads[m].Tags)
         //        //logger.Debugf("Host:    %s", payloads[m].Host)
-        //        //logger.Debugf("Type:    %s", payloads[m].Type)
+        //        logger.Debugf("Type:    %s", payloads[m].Type)
         //        //logger.Debugf("Auth:    %s", logging.Redact(payloads[m].Auth))
         //        logger.Debug("------------------------------------------------")
         //    }
@@ -161,6 +161,8 @@ func (l *DataDogOutlet) outlet() {
 }
 
 func (l *DataDogOutlet) postWithRetry(api_key string, body []byte) error {
+    defer l.Mchan.Time("datadog-outlet.post", time.Now())
+
     for i := 0; i <= l.numRetries; i++ {
         if err := l.post(api_key, body); err != nil {
             logger.Errorf("datadog-outlet.error key=%s msg=%s attempt=%d", api_key, err, i)
@@ -176,7 +178,7 @@ func (l *DataDogOutlet) postWithRetry(api_key string, body []byte) error {
 }
 
 func (l *DataDogOutlet) post(api_key string, body []byte) error {
-    defer l.Mchan.Time("datadog-outlet.post", time.Now())
+    //defer l.Mchan.Time("datadog-outlet.post", time.Now())
 
     req, err := metrics.DataDogCreateRequest(metrics.DataDogUrl, api_key, body)
     resp, err := l.conn.Do(req)

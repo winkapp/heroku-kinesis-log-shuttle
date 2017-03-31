@@ -111,7 +111,7 @@ func (c *Channel) Measure(name string, v float64) {
 }
 
 func (c *Channel) Count(name string, v float64) {
-    if !c.Enabled {
+    if !c.Enabled || v == 0 {
         return
     }
     id := &bucket.Id{
