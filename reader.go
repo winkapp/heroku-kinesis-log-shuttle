@@ -169,7 +169,7 @@ func (rdr *LogLineReader) ReadLines() error {
                 rdr.receiver.Receive(line, opts)
             }
 
-            if (rdr.logMetrics) {
+            if (len(matches) == 0 || rdr.logMetrics) {
                 if full := rdr.b.Add(LogLine{line, currentLogTime}); full {
                     rdr.deliverOrDropCurrent(time.Since(now))
                 }
