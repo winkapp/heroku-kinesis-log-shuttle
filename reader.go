@@ -170,7 +170,6 @@ func (rdr *LogLineReader) ReadLines() error {
             }
 
             if (rdr.logMetrics) {
-
                 if full := rdr.b.Add(LogLine{line, currentLogTime}); full {
                     rdr.deliverOrDropCurrent(time.Since(now))
                 }
@@ -178,8 +177,8 @@ func (rdr *LogLineReader) ReadLines() error {
                     now = time.Now()
                     rdr.timer.Reset(rdr.timeOut)
                 }
-                rdr.mu.Unlock()
             }
+            rdr.mu.Unlock()
         }
 
         if err != nil {
