@@ -10,7 +10,6 @@ import (
 
     "github.com/winkapp/log-shuttle/l2met/bucket"
     "github.com/op/go-logging"
-    //"strings"
 )
 
 var logger = logging.MustGetLogger("log-shuttle")
