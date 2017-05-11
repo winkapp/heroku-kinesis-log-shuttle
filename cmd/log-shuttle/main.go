@@ -136,6 +136,8 @@ func parseFlags(c shuttle.Config) (shuttle.Config, error) {
 
     flag.BoolVar(&c.SkipVerify, "skip-verify", c.SkipVerify, "Skip the verification of HTTPS server certificate")
     flag.BoolVar(&c.Drop, "drop", c.Drop, "Drop (default) logs or backup & block stdin")
+    flag.BoolVar(&c.LogMetrics, "LogMetrics", c.LogMetrics, "Send metric lines to log outlet (Default: false)")
+
     flag.BoolVar(&logToSyslog, "log-to-syslog", logToSyslog, "Log to syslog instead of stderr")
     flag.StringVar(&c.Prival, "prival", c.Prival, "The primary value of the rfc5424 header")
     flag.StringVar(&c.Version, "syslog-version", c.Version, "The version of syslog")

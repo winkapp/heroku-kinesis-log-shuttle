@@ -46,6 +46,7 @@ const (
     DefaultBatchSize                = 500
     DefaultID                       = ""
     DefaultDrop                     = true
+    DefaultLogMetrics               = false
     DefaultUseGzip                  = false
     DefaultKinesisShards            = 1
     DefaultServer                   = false
@@ -108,6 +109,7 @@ type Config struct {
     Verbose                             bool
     UseGzip                             bool
     Drop                                bool
+    LogMetrics                          bool
     WaitDuration                        time.Duration
     Timeout                             time.Duration
     StatsInterval                       time.Duration
@@ -171,6 +173,7 @@ func NewConfig() Config {
         ErrLogger:               discardLogger,
         FormatterFunc:           DefaultFormatterFunc,
         Drop:                    DefaultDrop,
+        LogMetrics:              DefaultLogMetrics,
         UseGzip:                 DefaultUseGzip,
         KinesisShards:           DefaultKinesisShards,
         Server:                  DefaultServer,

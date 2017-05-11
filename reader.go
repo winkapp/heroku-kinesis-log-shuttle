@@ -24,6 +24,7 @@ type LogLineReader struct {
     timer             *time.Timer   // timer to actually enforce timeout
     drops             *Counter
     drop              bool // Should we drop or block
+    logMetrics        bool // Send Metric Lines to Log Outlet
 
     linesRead         metrics.Counter
     linesBatchedCount metrics.Counter
@@ -48,14 +49,15 @@ func NewLogLineReader(input io.ReadCloser, s *Shuttle) *LogLineReader {
     t.Stop() // we only need a timer running when we actually have log lines in the batch
 
     ll := LogLineReader{
-        input:     input,
-        out:       s.Batches,
-        close:     make(chan struct{}),
-        batchSize: s.config.BatchSize,
-        timeOut:   s.config.WaitDuration,
-        timer:     t,
-        drops:     s.Drops,
-        drop:      s.config.Drop,
+        input:      input,
+        out:        s.Batches,
+        close:      make(chan struct{}),
+        batchSize:  s.config.BatchSize,
+        timeOut:    s.config.WaitDuration,
+        timer:      t,
+        drops:      s.Drops,
+        drop:       s.config.Drop,
+        logMetrics: s.config.LogMetrics,
 
         linesRead:         metrics.GetOrRegisterCounter("lines.read", s.MetricsRegistry),
         linesBatchedCount: metrics.GetOrRegisterCounter("lines.batched", s.MetricsRegistry),
@@ -167,12 +169,14 @@ func (rdr *LogLineReader) ReadLines() error {
                 rdr.receiver.Receive(line, opts)
             }
 
-            if full := rdr.b.Add(LogLine{line, currentLogTime}); full {
-                rdr.deliverOrDropCurrent(time.Since(now))
-            }
-            if rdr.b.MsgCount() == 1 { // First line so restart the timer
-                now = time.Now()
-                rdr.timer.Reset(rdr.timeOut)
+            if (len(matches) == 0 || rdr.logMetrics) {
+                if full := rdr.b.Add(LogLine{line, currentLogTime}); full {
+                    rdr.deliverOrDropCurrent(time.Since(now))
+                }
+                if rdr.b.MsgCount() == 1 { // First line so restart the timer
+                    now = time.Now()
+                    rdr.timer.Reset(rdr.timeOut)
+                }
             }
             rdr.mu.Unlock()
         }
