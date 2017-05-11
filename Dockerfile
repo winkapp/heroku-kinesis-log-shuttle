@@ -1,12 +1,18 @@
-FROM quay.io/winkapp/log-shuttle:v0.16.0
+FROM golang:1.8.0-alpine
+LABEL maintainer "Jonathan Hosmer <jonathan@wink.com>"
 
-RUN apk update
+RUN set -ex \
+        && apk add --no-cache --virtual .build-deps \
+            git \
+        && apk del .build-deps
 
-RUN apk-install wget sudo bash
+RUN mkdir -p /go/src/github.com/winkapp/log-shuttle
+WORKDIR /go/src/github.com/winkapp/log-shuttle
 
-ADD ./heroku_kinesis.sh /root/
+EXPOSE 514/tcp 514/udp
 
-EXPOSE 514
+COPY . /go/src/github.com/winkapp/log-shuttle
+RUN go-wrapper download
+RUN go-wrapper install ./cmd/log-shuttle
 
-ENTRYPOINT ["/bin/bash"]
-CMD ["/root/heroku_kinesis.sh"]
+ENTRYPOINT ["/go/bin/log-shuttle"]

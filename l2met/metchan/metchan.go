@@ -1,0 +1,227 @@
+// An internal metrics channel.
+// l2met internal components can publish their metrics
+// here and they will be outletted.
+package metchan
+
+import (
+    "strings"
+    "sync"
+    "time"
+
+    "github.com/winkapp/log-shuttle/l2met/bucket"
+    "github.com/winkapp/log-shuttle/l2met/metrics"
+    "github.com/op/go-logging"
+)
+
+var logger = logging.MustGetLogger("log-shuttle")
+
+type Channel struct {
+    // The time by which metchan will aggregate internal metrics.
+    FlushInterval time.Duration
+    // The Channel is thread-safe.
+    sync.Mutex
+    token      string
+    Enabled    bool
+    Buffer     map[string]*bucket.Bucket
+    outbox     chan *bucket.Metric
+    source     string
+    appName    string
+    tags       string
+    numOutlets int
+}
+
+// Returns an initialized Metchan Channel.
+// Creates a new HTTP client for direct access upstream.
+// This channel is orthogonal with other outlet http clients in l2met.
+// If a blank URL is given, no metric posting attempt will be made.
+// If verbose is set to true, the metric will be printed to STDOUT
+// regardless of whether the metric is sent upstream.
+func New(token string, ccu int, buffsize int, appName string, hostName string, tags string) *Channel {
+    c := new(Channel)
+
+    c.Enabled = true
+    c.token = token
+    c.numOutlets = ccu
+
+    // Internal Datastructures.
+    c.Buffer = make(map[string]*bucket.Bucket)
+    c.outbox = make(chan *bucket.Metric, buffsize)
+
+    // Default flush interval.
+    c.FlushInterval = time.Second * 5
+
+    c.source = hostName
+    c.appName = appName
+    c.tags = tags
+
+    logger.Debugf("MetChan tags:          %s", c.tags)
+    logger.Debugf("MetChan token:         %s", logging.Redact(c.token))
+    logger.Debugf("MetChan source:        %s", c.source)
+    logger.Debugf("MetChan appName:       %s", c.appName)
+    logger.Debugf("MetChan numOutlets:    %d", c.numOutlets)
+    logger.Debugf("MetChan FlushInterval: %v", c.FlushInterval)
+
+    return c
+}
+
+func (c *Channel) Start() {
+    if c.Enabled {
+        go c.scheduleFlush()
+        for i := 0; i < c.numOutlets; i++ {
+            go c.outlet()
+        }
+    }
+}
+
+// Provide the time at which you started your measurement.
+// Places the measurement in a buffer to be aggregated and
+// eventually flushed upstream.
+func (c *Channel) Time(name string, t time.Time) {
+    elapsed := time.Since(t) / time.Millisecond
+    c.Measure(name, float64(elapsed))
+}
+
+func (c *Channel) Measure(name string, v float64) {
+    if !c.Enabled {
+        return
+    }
+    //if !strings.HasPrefix(name, "datadog-outlet") &&
+    //    !strings.HasPrefix(name, "reader.scan") &&
+    //    !strings.HasPrefix(name, "receiver.accept") &&
+    //    !strings.HasPrefix(name, "receiver.buffer.inbox") &&
+    //    !strings.HasPrefix(name, "receiver.buffer.outbox") &&
+    //    !strings.HasPrefix(name, "reader.get") &&
+    //    !strings.HasPrefix(name, "receiver.add-bucket") &&
+    //    !strings.HasPrefix(name, "receiver.outlet") {
+    //    if v > 0 {
+    //       logger.Debugf("measure#%s=%f", name, v)
+    //    }
+    //}
+    id := &bucket.Id{
+        Resolution: c.FlushInterval,
+        Name:       name,
+        Units:      "ms",
+        Source:     c.source,
+        Type:       "measurement",
+        Auth:       c.token,
+        Tags:       c.tags,
+    }
+    b := c.getBucket(id)
+    b.Append(v)
+}
+
+func (c *Channel) Count(name string, v float64) {
+    if !c.Enabled || v == 0 {
+        return
+    }
+    id := &bucket.Id{
+        Resolution: c.FlushInterval,
+        Name:       name,
+        Units:      "requests",
+        Source:     c.source,
+        Type:       "counter",
+        Auth:       c.token,
+        Tags:       c.tags,
+    }
+    b := c.getBucket(id)
+    b.Incr(v)
+}
+
+func (c *Channel) CountReq(user string) {
+    if !c.Enabled {
+        return
+    }
+    usr := strings.Replace(user, "@", "_at_", -1)
+    id := &bucket.Id{
+        Resolution: c.FlushInterval,
+        Name:       "receiver.requests",
+        Units:      "requests",
+        Source:     usr,
+        Type:       "counter",
+        Auth:       c.token,
+        Tags:       c.tags,
+    }
+    b := c.getBucket(id)
+    b.Incr(1)
+}
+
+func (c *Channel) getBucket(id *bucket.Id) *bucket.Bucket {
+    c.Lock()
+    defer c.Unlock()
+    key := id.Name + ":" + id.Source
+    b, ok := c.Buffer[key]
+    if !ok {
+        b = &bucket.Bucket{Id: id}
+        b.Vals = make([]float64, 1, 10000)
+        c.Buffer[key] = b
+    }
+    // Instead of creating a new bucket struct with a new Vals slice
+    // We will re-use the old bucket and reset the slice. This
+    // dramatically decreases the amount of arrays created and thus
+    // led to better memory utilization.
+    latest := time.Now().Truncate(c.FlushInterval)
+    if b.Id.Time != latest {
+        b.Id.Time = latest
+        b.Reset()
+    }
+    return b
+}
+
+func (c *Channel) scheduleFlush() {
+    for range time.Tick(c.FlushInterval) {
+        c.flush()
+    }
+}
+
+func (c *Channel) flush() {
+    c.Lock()
+    defer c.Unlock()
+    for _, b := range c.Buffer {
+        for _, m := range b.Metrics() {
+            select {
+            case c.outbox <- m:
+            default:
+                logger.Error("error=metchan-drop")
+            }
+        }
+    }
+}
+
+func (c *Channel) outlet() {
+    for met := range c.outbox {
+        //var ignore = strings.Split(met.Name, ".")[1]
+        //if ignore == "datadog-outlet" || ignore == "reader" || ignore == "receiver" {
+        //
+        //} else {
+        //    logger.Debug("-----------------------------------------------")
+        //    logger.Debugf("Name:       %s", met.Name)
+        //    logger.Debugf("Time:       %v", met.Time)
+        //    if met.IsComplex {
+        //        logger.Debugf("Count:      %d", *met.Count)
+        //        logger.Debugf("Sum:        %f", *met.Sum)
+        //        logger.Debugf("Max:        %f", *met.Max)
+        //        logger.Debugf("Min:        %f", *met.Min)
+        //    } else {
+        //        logger.Debugf("Val:        %f", *met.Val)
+        //    }
+        //    logger.Debugf("Source:     %s", met.Source)
+        //    logger.Debugf("Auth:       %s", logging.Redact(met.Auth))
+        //    logger.Debugf("Attr.Min:   %d", met.Attr.Min)
+        //    logger.Debugf("Attr.Units: %s", met.Attr.Units)
+        //    logger.Debug("-----------------------------------------------")
+        //}
+        if err := c.post(met); err != nil {
+            logger.Errorf("at=metchan-post error=%s", err)
+        }
+    }
+}
+
+func (c *Channel) post(m *bucket.Metric) error {
+    // FIXME: hardcoded to push to datadog, should be configurable?
+    dd := metrics.DataDogConverter{Src: m, Tags: strings.Split(c.tags, ",")}
+    return dd.Post(c.token)
+}
+
+func (c *Channel) Token() string {
+    return c.token
+}
